@@ -3,6 +3,7 @@ productName: English Reader
 mac:
   category: public.app-category.education
   target: dmg
+  icon: assets/icon.icns
 asar: true
 directories:
   output: release
