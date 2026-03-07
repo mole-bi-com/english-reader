@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useReadingStore } from '../stores/reading-store'
 import { useSettingsStore } from '../stores/settings-store'
+import { useVocabStore } from '../stores/vocab-store'
 import { splitSentences, splitWords, isWord } from '../utils/text-parser'
+import WordPopup from './WordPopup'
 
 export default function ReaderView() {
   const currentBook = useReadingStore(s => s.currentBook)
@@ -10,6 +12,7 @@ export default function ReaderView() {
   const fontSize = useSettingsStore(s => s.fontSize)
   const lineHeight = useSettingsStore(s => s.lineHeight)
   const fontFamily = useSettingsStore(s => s.fontFamily)
+  const loadVocab = useVocabStore(s => s.loadVocab)
 
   const [selectedWord, setSelectedWord] = useState(null)
   const contentRef = useRef(null)
@@ -36,6 +39,11 @@ export default function ReaderView() {
       })
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load vocab store on mount
+  useEffect(() => {
+    loadVocab()
+  }, [loadVocab])
 
   // Debounced scroll position save
   const handleScroll = useCallback(() => {
@@ -162,6 +170,17 @@ export default function ReaderView() {
           ))}
         </div>
       </div>
+
+      {/* Word popup */}
+      {selectedWord && (
+        <WordPopup
+          word={selectedWord.word}
+          sentence={selectedWord.sentence}
+          rect={selectedWord.rect}
+          onClose={() => setSelectedWord(null)}
+          bookTitle={currentBook.title}
+        />
+      )}
     </div>
   )
 }
