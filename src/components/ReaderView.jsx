@@ -4,6 +4,8 @@ import { useSettingsStore } from '../stores/settings-store'
 import { useVocabStore } from '../stores/vocab-store'
 import { splitSentences, splitWords, isWord } from '../utils/text-parser'
 import WordPopup from './WordPopup'
+import VocabSidebar from './VocabSidebar'
+import SettingsPanel from './SettingsPanel'
 
 export default function ReaderView() {
   const currentBook = useReadingStore(s => s.currentBook)
@@ -15,6 +17,8 @@ export default function ReaderView() {
   const loadVocab = useVocabStore(s => s.loadVocab)
 
   const [selectedWord, setSelectedWord] = useState(null)
+  const [showVocab, setShowVocab] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const contentRef = useRef(null)
   const scrollTimeoutRef = useRef(null)
 
@@ -115,14 +119,26 @@ export default function ReaderView() {
           <span style={styles.backArrow}>&larr;</span> Home
         </button>
         <h1 style={styles.bookTitle}>{currentBook.title}</h1>
-        <button
-          style={styles.settingsButton}
-          onMouseEnter={e => { e.target.style.background = 'rgba(139, 105, 20, 0.1)' }}
-          onMouseLeave={e => { e.target.style.background = 'transparent' }}
-          title="Settings"
-        >
-          &#9881;
-        </button>
+        <div style={styles.topBarRight}>
+          <button
+            onClick={() => setShowVocab(true)}
+            style={styles.vocabButton}
+            onMouseEnter={e => { e.target.style.background = 'rgba(139, 105, 20, 0.1)' }}
+            onMouseLeave={e => { e.target.style.background = 'transparent' }}
+            title="My Vocabulary"
+          >
+            {'\uD83D\uDCD6'} Vocab
+          </button>
+          <button
+            onClick={() => setShowSettings(true)}
+            style={styles.settingsButton}
+            onMouseEnter={e => { e.target.style.background = 'rgba(139, 105, 20, 0.1)' }}
+            onMouseLeave={e => { e.target.style.background = 'transparent' }}
+            title="Settings"
+          >
+            &#9881;
+          </button>
+        </div>
       </header>
 
       {/* Main reading area */}
@@ -181,6 +197,9 @@ export default function ReaderView() {
           bookTitle={currentBook.title}
         />
       )}
+
+      {/* Vocabulary sidebar */}
+      <VocabSidebar isOpen={showVocab} onClose={() => setShowVocab(false)} />
     </div>
   )
 }
@@ -234,6 +253,27 @@ const styles = {
     textAlign: 'center',
     flex: 1,
     margin: '0 16px',
+  },
+  topBarRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+  },
+  vocabButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    padding: '6px 12px',
+    fontSize: 14,
+    fontFamily: 'Georgia, serif',
+    color: '#8b6914',
+    background: 'transparent',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
+    transition: 'background 0.2s',
+    letterSpacing: '0.02em',
+    whiteSpace: 'nowrap',
   },
   settingsButton: {
     padding: '6px 10px',

@@ -24,5 +24,15 @@ export const useVocabStore = create((set, get) => ({
     await window.electronAPI.storeSet('vocab', updated)
   },
 
+  toggleStar: async (word, context_sentence) => {
+    const updated = get().vocab.map(v =>
+      v.word === word && v.context_sentence === context_sentence
+        ? { ...v, is_starred: !v.is_starred }
+        : v
+    )
+    set({ vocab: updated })
+    await window.electronAPI.storeSet('vocab', updated)
+  },
+
   isWordSaved: (word) => get().vocab.some(v => v.word === word.toLowerCase()),
 }))
