@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSettingsStore } from '../stores/settings-store'
 
 const themes = [
@@ -15,6 +15,18 @@ export default function SettingsPanel({ isOpen, onClose }) {
   const updateSetting = useSettingsStore(s => s.updateSetting)
 
   const [showApiKey, setShowApiKey] = useState(false)
+
+  // Escape key to close
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
 
   if (!isOpen) return null
 

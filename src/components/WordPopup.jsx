@@ -48,6 +48,11 @@ export default function WordPopup({ word, sentence, rect, onClose, bookTitle }) 
         setOnlineData(result)
         setOnlineLoading(false)
       }
+    }).catch(() => {
+      if (!cancelled) {
+        setOnlineData(null)
+        setOnlineLoading(false)
+      }
     })
 
     return () => { cancelled = true }
@@ -115,6 +120,17 @@ export default function WordPopup({ word, sentence, rect, onClose, bookTitle }) 
     setPosition({ top, left })
     setPositioned(true)
   }, [rect, localData, onlineData, translation, aiResult])
+
+  // Escape key to close
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
 
   // Click outside to close
   useEffect(() => {

@@ -46,6 +46,21 @@ body {
 .word:hover {
   background-color: rgba(139, 105, 20, 0.15);
 }
+.word-saved {
+  position: relative;
+}
+.word-saved::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: var(--accent, #8b6914);
+  opacity: 0.6;
+}
 .sentence {
   display: inline;
 }

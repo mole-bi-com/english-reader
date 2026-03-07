@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useVocabStore } from '../stores/vocab-store'
 
 export default function VocabSidebar({ isOpen, onClose }) {
@@ -8,6 +8,18 @@ export default function VocabSidebar({ isOpen, onClose }) {
 
   const [search, setSearch] = useState('')
   const [bookFilter, setBookFilter] = useState('All Books')
+
+  // Escape key to close
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
 
   // Unique book titles from saved vocab
   const bookTitles = useMemo(() => {

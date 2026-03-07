@@ -15,6 +15,8 @@ export default function ReaderView() {
   const lineHeight = useSettingsStore(s => s.lineHeight)
   const fontFamily = useSettingsStore(s => s.fontFamily)
   const loadVocab = useVocabStore(s => s.loadVocab)
+  const isWordSaved = useVocabStore(s => s.isWordSaved)
+  const vocab = useVocabStore(s => s.vocab) // subscribe to trigger re-render on save
 
   const [selectedWord, setSelectedWord] = useState(null)
   const [showVocab, setShowVocab] = useState(false)
@@ -69,6 +71,23 @@ export default function ReaderView() {
       }
     }
   }, [])
+
+  // Escape key to close popup, sidebar, or settings
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (selectedWord) {
+          setSelectedWord(null)
+        } else if (showSettings) {
+          setShowSettings(false)
+        } else if (showVocab) {
+          setShowVocab(false)
+        }
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [selectedWord, showSettings, showVocab])
 
   // Event delegation for word clicks
   const handleContentClick = useCallback((e) => {
@@ -164,11 +183,13 @@ export default function ReaderView() {
                   <span key={sIdx} className="sentence">
                     {sentence.tokens.map((token, tIdx) => {
                       if (isWord(token)) {
+                        const wordLower = token.toLowerCase()
+                        const savedClass = isWordSaved(wordLower) ? ' word-saved' : ''
                         return (
                           <span
                             key={tIdx}
-                            className="word"
-                            data-word={token.toLowerCase()}
+                            className={`word${savedClass}`}
+                            data-word={wordLower}
                             data-sentence-idx={sentenceIdx}
                           >
                             {token}

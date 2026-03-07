@@ -1,0 +1,12 @@
+appId: com.visualcamp.english-reader
+productName: English Reader
+mac:
+  category: public.app-category.education
+  target: dmg
+asar: true
+directories:
+  output: release
+files:
+  - "dist/**/*"
+  - "dist-electron/**/*"
+  - "assets/**/*"
