@@ -67,10 +67,11 @@ export default function WordPopup({ word, sentence, rect, onClose, bookTitle }) 
     if (sentence) {
       translateSentence(sentence).then(result => {
         if (!cancelled) {
-          setTranslation(result || '')
+          setTranslation(result || '(No translation returned)')
           setTranslationLoading(false)
         }
-      }).catch(() => {
+      }).catch((err) => {
+        console.error('Translation error:', err)
         if (!cancelled) {
           setTranslation('Translation unavailable')
           setTranslationLoading(false)

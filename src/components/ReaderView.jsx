@@ -182,22 +182,29 @@ export default function ReaderView() {
                 return (
                   <span key={sIdx} className="sentence">
                     {sentence.tokens.map((token, tIdx) => {
+                      const nextToken = sentence.tokens[tIdx + 1]
+                      // Add space after token unless next token is punctuation
+                      const needsSpace = tIdx < sentence.tokens.length - 1 && nextToken && isWord(nextToken)
+                      const spacer = needsSpace ? ' ' : (!nextToken ? '' : /^[,;:!?.)}\]'"]/.test(nextToken) ? '' : ' ')
+
                       if (isWord(token)) {
                         const wordLower = token.toLowerCase()
                         const savedClass = isWordSaved(wordLower) ? ' word-saved' : ''
                         return (
-                          <span
-                            key={tIdx}
-                            className={`word${savedClass}`}
-                            data-word={wordLower}
-                            data-sentence-idx={sentenceIdx}
-                          >
-                            {token}
+                          <span key={tIdx}>
+                            <span
+                              className={`word${savedClass}`}
+                              data-word={wordLower}
+                              data-sentence-idx={sentenceIdx}
+                            >
+                              {token}
+                            </span>
+                            {spacer}
                           </span>
                         )
                       }
                       return (
-                        <span key={tIdx}>{token}</span>
+                        <span key={tIdx}>{token}{spacer}</span>
                       )
                     })}
                   </span>

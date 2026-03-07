@@ -6,16 +6,25 @@ let store
 
 // Gemini API call helper
 async function callGemini(apiKey, prompt) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-    }),
-  })
-  const data = await res.json()
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${apiKey}`
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+      }),
+    })
+    const data = await res.json()
+    if (data.error) {
+      console.error('Gemini API error:', data.error.message || data.error)
+      return `(API error: ${data.error.message || 'Unknown error'})`
+    }
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || '(No response from API)'
+  } catch (err) {
+    console.error('Gemini fetch error:', err)
+    return `(Network error: ${err.message})`
+  }
 }
 
 async function initStore() {
