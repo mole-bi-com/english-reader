@@ -200,6 +200,9 @@ export default function ReaderView() {
 
       {/* Vocabulary sidebar */}
       <VocabSidebar isOpen={showVocab} onClose={() => setShowVocab(false)} />
+
+      {/* Settings panel */}
+      <SettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   )
 }
@@ -209,15 +212,15 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     height: '100vh',
-    background: '#f4ecd8',
+    background: 'var(--bg, #f4ecd8)',
   },
   topBar: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '10px 20px',
-    borderBottom: '1px solid #e0d5be',
-    background: '#f4ecd8',
+    borderBottom: '1px solid var(--border, #e0d5be)',
+    background: 'var(--bg, #f4ecd8)',
     flexShrink: 0,
     minHeight: 52,
   },
@@ -228,7 +231,7 @@ const styles = {
     padding: '6px 14px',
     fontSize: 15,
     fontFamily: 'Georgia, serif',
-    color: '#8b6914',
+    color: 'var(--accent, #8b6914)',
     background: 'transparent',
     border: 'none',
     borderRadius: 6,
@@ -244,7 +247,7 @@ const styles = {
     fontSize: 16,
     fontWeight: 400,
     fontFamily: 'Georgia, serif',
-    color: '#3d3229',
+    color: 'var(--text, #3d3229)',
     letterSpacing: '0.02em',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -266,7 +269,7 @@ const styles = {
     padding: '6px 12px',
     fontSize: 14,
     fontFamily: 'Georgia, serif',
-    color: '#8b6914',
+    color: 'var(--accent, #8b6914)',
     background: 'transparent',
     border: 'none',
     borderRadius: 6,
@@ -278,7 +281,7 @@ const styles = {
   settingsButton: {
     padding: '6px 10px',
     fontSize: 20,
-    color: '#8b7b6b',
+    color: 'var(--text-secondary, #8b7b6b)',
     background: 'transparent',
     border: 'none',
     borderRadius: 6,
@@ -295,7 +298,7 @@ const styles = {
     maxWidth: 700,
     margin: '0 auto',
     padding: '40px 32px 120px',
-    color: '#3d3229',
+    color: 'var(--text, #3d3229)',
   },
   paragraph: {
     marginBottom: '1.2em',

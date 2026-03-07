@@ -1,11 +1,42 @@
+/* Theme custom properties */
+.theme-sepia {
+  --bg: #f4ecd8;
+  --bg-secondary: #ede5d0;
+  --text: #3d3229;
+  --text-secondary: #6b5d4d;
+  --accent: #8b6914;
+  --border: #d4c9b0;
+  --card-bg: #fffdf7;
+}
+.theme-light {
+  --bg: #fafaf8;
+  --bg-secondary: #f0f0ee;
+  --text: #2c2c2c;
+  --text-secondary: #666;
+  --accent: #5a4a2a;
+  --border: #e0e0e0;
+  --card-bg: #ffffff;
+}
+.theme-dark {
+  --bg: #1a1a1e;
+  --bg-secondary: #252528;
+  --text: #d4d0c8;
+  --text-secondary: #8a8680;
+  --accent: #e8b84b;
+  --border: #3a3a3e;
+  --card-bg: #222226;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: Georgia, 'Times New Roman', serif;
-  background: #f4ecd8;
-  color: #3d3229;
+  background: var(--bg, #f4ecd8);
+  color: var(--text, #3d3229);
 }
 .app {
-  padding-top: 40px;
+  min-height: 100vh;
+  background: var(--bg, #f4ecd8);
+  color: var(--text, #3d3229);
 }
 .word {
   cursor: pointer;

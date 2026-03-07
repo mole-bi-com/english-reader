@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useReadingStore } from '../stores/reading-store'
+import SettingsPanel from './SettingsPanel'
 
 const SAMPLE_TEXT = `It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.
 
@@ -27,6 +28,21 @@ const styles = {
     margin: '0 auto',
     padding: '60px 32px 80px',
     minHeight: '100vh',
+    position: 'relative',
+  },
+  settingsGear: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    padding: '6px 10px',
+    fontSize: 22,
+    color: 'var(--text-secondary, #8b7b6b)',
+    background: 'transparent',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
+    transition: 'background 0.2s',
+    lineHeight: 1,
   },
   header: {
     textAlign: 'center',
@@ -42,13 +58,13 @@ const styles = {
     fontSize: 32,
     fontWeight: 400,
     letterSpacing: '0.02em',
-    color: '#3d3229',
+    color: 'var(--text, #3d3229)',
     marginBottom: 8,
     fontFamily: 'Georgia, serif',
   },
   subtitle: {
     fontSize: 15,
-    color: '#8b7b6b',
+    color: 'var(--text-secondary, #8b7b6b)',
     fontWeight: 400,
     letterSpacing: '0.03em',
     fontFamily: 'Georgia, serif',
@@ -60,7 +76,7 @@ const styles = {
     fontSize: 13,
     textTransform: 'uppercase',
     letterSpacing: '0.12em',
-    color: '#8b7b6b',
+    color: 'var(--text-secondary, #8b7b6b)',
     marginBottom: 16,
     fontFamily: 'Georgia, serif',
     fontWeight: 400,
@@ -70,10 +86,10 @@ const styles = {
     padding: '12px 16px',
     fontSize: 18,
     fontFamily: 'Georgia, serif',
-    border: '1px solid #d4c9b0',
+    border: '1px solid var(--border, #d4c9b0)',
     borderRadius: 6,
-    background: '#faf6ee',
-    color: '#3d3229',
+    background: 'var(--card-bg, #faf6ee)',
+    color: 'var(--text, #3d3229)',
     outline: 'none',
     marginBottom: 12,
     transition: 'border-color 0.2s',
@@ -85,10 +101,10 @@ const styles = {
     fontSize: 16,
     lineHeight: 1.8,
     fontFamily: 'Georgia, serif',
-    border: '1px solid #d4c9b0',
+    border: '1px solid var(--border, #d4c9b0)',
     borderRadius: 6,
-    background: '#faf6ee',
-    color: '#3d3229',
+    background: 'var(--card-bg, #faf6ee)',
+    color: 'var(--text, #3d3229)',
     outline: 'none',
     resize: 'vertical',
     transition: 'border-color 0.2s',
@@ -103,7 +119,7 @@ const styles = {
     padding: '12px 32px',
     fontSize: 16,
     fontFamily: 'Georgia, serif',
-    background: '#8b6914',
+    background: 'var(--accent, #8b6914)',
     color: '#faf6ee',
     border: 'none',
     borderRadius: 6,
@@ -115,7 +131,7 @@ const styles = {
     padding: '12px 32px',
     fontSize: 16,
     fontFamily: 'Georgia, serif',
-    background: '#8b6914',
+    background: 'var(--accent, #8b6914)',
     color: '#faf6ee',
     border: 'none',
     borderRadius: 6,
@@ -128,8 +144,8 @@ const styles = {
     fontSize: 14,
     fontFamily: 'Georgia, serif',
     background: 'transparent',
-    color: '#8b7b6b',
-    border: '1px solid #d4c9b0',
+    color: 'var(--text-secondary, #8b7b6b)',
+    border: '1px solid var(--border, #d4c9b0)',
     borderRadius: 6,
     cursor: 'pointer',
     letterSpacing: '0.02em',
@@ -137,7 +153,7 @@ const styles = {
   },
   divider: {
     border: 'none',
-    borderTop: '1px solid #ddd3be',
+    borderTop: '1px solid var(--border, #ddd3be)',
     margin: '44px 0',
   },
   bookList: {
@@ -151,21 +167,21 @@ const styles = {
     justifyContent: 'space-between',
     padding: '16px 20px',
     marginBottom: 8,
-    background: '#faf6ee',
+    background: 'var(--card-bg, #faf6ee)',
     borderRadius: 6,
-    border: '1px solid #e8dfc9',
+    border: '1px solid var(--border, #e8dfc9)',
     cursor: 'pointer',
     transition: 'border-color 0.2s, background 0.2s',
   },
   bookTitle: {
     fontSize: 16,
     fontFamily: 'Georgia, serif',
-    color: '#3d3229',
+    color: 'var(--text, #3d3229)',
     fontWeight: 400,
   },
   bookMeta: {
     fontSize: 13,
-    color: '#a89880',
+    color: 'var(--text-secondary, #a89880)',
     fontFamily: 'Georgia, serif',
   },
   bookProgress: {
@@ -176,20 +192,20 @@ const styles = {
   progressBar: {
     width: 60,
     height: 4,
-    background: '#e8dfc9',
+    background: 'var(--border, #e8dfc9)',
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    background: '#8b6914',
+    background: 'var(--accent, #8b6914)',
     borderRadius: 2,
     transition: 'width 0.3s',
   },
   emptyState: {
     textAlign: 'center',
     padding: '32px 0',
-    color: '#a89880',
+    color: 'var(--text-secondary, #a89880)',
     fontSize: 15,
     fontFamily: 'Georgia, serif',
     fontStyle: 'italic',
@@ -199,6 +215,7 @@ const styles = {
 export default function HomeView() {
   const [title, setTitle] = useState('')
   const [text, setText] = useState('')
+  const [showSettings, setShowSettings] = useState(false)
   const books = useReadingStore(s => s.books)
   const startReading = useReadingStore(s => s.startReading)
 
@@ -231,6 +248,17 @@ export default function HomeView() {
 
   return (
     <div style={styles.container}>
+      {/* Settings gear in top-right corner */}
+      <button
+        onClick={() => setShowSettings(true)}
+        style={styles.settingsGear}
+        onMouseEnter={e => { e.target.style.background = 'rgba(139, 105, 20, 0.1)' }}
+        onMouseLeave={e => { e.target.style.background = 'transparent' }}
+        title="Settings"
+      >
+        &#9881;
+      </button>
+
       <header style={styles.header}>
         <span style={styles.icon} role="img" aria-label="book">
           &#9783;
@@ -337,6 +365,9 @@ export default function HomeView() {
           </p>
         </>
       )}
+
+      {/* Settings panel */}
+      <SettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   )
 }
