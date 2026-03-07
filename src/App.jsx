@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useReadingStore } from './stores/reading-store'
 import { useSettingsStore } from './stores/settings-store'
 import HomeView from './components/HomeView'
+import ReaderView from './components/ReaderView'
 
 export default function App() {
   const currentBook = useReadingStore(s => s.currentBook)
@@ -13,6 +14,6 @@ export default function App() {
     loadSettings()
   }, [])
 
-  if (currentBook) return <div className="app">Reader coming soon...</div>
+  if (currentBook) return <ReaderView />
   return <HomeView />
 }

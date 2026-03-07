@@ -7,3 +7,14 @@ body {
 .app {
   padding-top: 40px;
 }
+.word {
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background-color 0.15s;
+}
+.word:hover {
+  background-color: rgba(139, 105, 20, 0.15);
+}
+.sentence {
+  display: inline;
+}
