@@ -4,7 +4,8 @@ export const useVocabStore = create((set, get) => ({
   vocab: [],
 
   loadVocab: async () => {
-    const vocab = await window.electronAPI.storeGet('vocab') || []
+    const data = localStorage.getItem('vocab')
+    const vocab = data ? JSON.parse(data) : []
     set({ vocab })
   },
 
@@ -15,13 +16,13 @@ export const useVocabStore = create((set, get) => ({
     const newEntry = { ...entry, created_at: new Date().toISOString(), is_starred: false }
     const updated = [newEntry, ...vocab]
     set({ vocab: updated })
-    await window.electronAPI.storeSet('vocab', updated)
+    localStorage.setItem('vocab', JSON.stringify(updated))
   },
 
   removeWord: async (word, context_sentence) => {
     const updated = get().vocab.filter(v => !(v.word === word && v.context_sentence === context_sentence))
     set({ vocab: updated })
-    await window.electronAPI.storeSet('vocab', updated)
+    localStorage.setItem('vocab', JSON.stringify(updated))
   },
 
   toggleStar: async (word, context_sentence) => {
@@ -31,7 +32,7 @@ export const useVocabStore = create((set, get) => ({
         : v
     )
     set({ vocab: updated })
-    await window.electronAPI.storeSet('vocab', updated)
+    localStorage.setItem('vocab', JSON.stringify(updated))
   },
 
   isWordSaved: (word) => get().vocab.some(v => v.word === word.toLowerCase()),

@@ -5,7 +5,8 @@ export const useReadingStore = create((set, get) => ({
   currentBook: null,
 
   loadBooks: async () => {
-    const books = await window.electronAPI.storeGet('books') || []
+    const data = localStorage.getItem('books')
+    const books = data ? JSON.parse(data) : []
     set({ books })
   },
 
@@ -17,7 +18,7 @@ export const useReadingStore = create((set, get) => ({
     if (!existing) {
       book.text = text
       books.unshift(book)
-      await window.electronAPI.storeSet('books', books)
+      localStorage.setItem('books', JSON.stringify(books))
     }
 
     set({ currentBook: book, books })
@@ -29,7 +30,7 @@ export const useReadingStore = create((set, get) => ({
     currentBook.lastPosition = position
     const updated = books.map(b => b.title === currentBook.title ? currentBook : b)
     set({ books: updated, currentBook: { ...currentBook } })
-    await window.electronAPI.storeSet('books', updated)
+    localStorage.setItem('books', JSON.stringify(updated))
   },
 
   goHome: () => set({ currentBook: null }),

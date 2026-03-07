@@ -13,7 +13,8 @@ export const useSettingsStore = create((set, get) => ({
   loaded: false,
 
   loadSettings: async () => {
-    const saved = await window.electronAPI.storeGet('settings')
+    const data = localStorage.getItem('settings')
+    const saved = data ? JSON.parse(data) : null
     if (saved) set({ ...saved, loaded: true })
     else set({ loaded: true })
   },
@@ -21,6 +22,6 @@ export const useSettingsStore = create((set, get) => ({
   updateSetting: async (key, value) => {
     set({ [key]: value })
     const { theme, fontSize, lineHeight, fontFamily, apiKey } = { ...get(), [key]: value }
-    await window.electronAPI.storeSet('settings', { theme, fontSize, lineHeight, fontFamily, apiKey })
+    localStorage.setItem('settings', JSON.stringify({ theme, fontSize, lineHeight, fontFamily, apiKey }))
   },
 }))
