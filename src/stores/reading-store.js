@@ -40,28 +40,30 @@ export const useReadingStore = create((set, get) => ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title, text }),
         })
-
-        // Trigger AI analysis in background
-        fetch('/api/analyze-text', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, bookTitle: title }),
-        })
-          .then(res => res.json())
-          .then(hints => {
-            if (hints && !hints.error) {
-              set(state => ({
-                books: state.books.map(b => b.title === title ? { ...b, hints } : b),
-                currentBook: get().currentBook?.title === title ? { ...get().currentBook, hints } : get().currentBook
-              }))
-            }
-          })
-          .catch(console.error)
       } catch (err) {
         console.error('Failed to sync book to API', err)
       }
 
       localStorage.setItem('books', JSON.stringify(books))
+    }
+
+    // Trigger AI analysis if hints are missing
+    if (!book.hints || Object.keys(book.hints).length === 0) {
+      fetch('/api/analyze-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: book.text, bookTitle: book.title }),
+      })
+        .then(res => res.json())
+        .then(hints => {
+          if (hints && !hints.error) {
+            set(state => ({
+              books: state.books.map(b => b.title === title ? { ...b, hints } : b),
+              currentBook: get().currentBook?.title === title ? { ...get().currentBook, hints } : get().currentBook
+            }))
+          }
+        })
+        .catch(console.error)
     }
 
     set({ currentBook: book, books })

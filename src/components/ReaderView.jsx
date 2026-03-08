@@ -32,10 +32,18 @@ export default function ReaderView() {
   const [activeSentenceIdx, setActiveSentenceIdx] = useState(-1)
   const [readWordsCount, setReadWordsCount] = useState(0)
 
-  // Hint Mode state
+  // Hint & Focus state
   const [showHints, setShowHints] = useState(false)
+  const [isLineFocusOn, setIsLineFocusOn] = useState(false)
+
+  // Focus Timer state
+  const [focusTimeLeft, setFocusTimeLeft] = useState(600) // 10 minutes
+  const [isTimerRunning, setIsTimerRunning] = useState(false)
+  const [focusStars, setFocusStars] = useState(0)
+  const [showBookmarkToast, setShowBookmarkToast] = useState(false)
 
   const pacemakerTimerRef = useRef(null)
+  const focusTimerRef = useRef(null)
   const contentRef = useRef(null)
   const scrollTimeoutRef = useRef(null)
 
@@ -138,6 +146,57 @@ export default function ReaderView() {
     }
   }, [readWordsCount, addReadActivity])
 
+  // Focus Timer Logic
+  useEffect(() => {
+    if (isTimerRunning && focusTimeLeft > 0) {
+      focusTimerRef.current = setInterval(() => {
+        setFocusTimeLeft(prev => {
+          const next = prev - 1
+          if (next > 0 && (600 - next) % 60 === 0) {
+            setFocusStars(s => s + 1)
+          }
+          return next
+        })
+      }, 1000)
+    } else {
+      clearInterval(focusTimerRef.current)
+    }
+    return () => clearInterval(focusTimerRef.current)
+  }, [isTimerRunning, focusTimeLeft])
+
+  // Visibility API to pause timer
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setIsTimerRunning(false)
+      } else if (currentBook) {
+        setIsTimerRunning(true)
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [currentBook])
+
+  // Start timer on mount/book load
+  useEffect(() => {
+    if (currentBook) setIsTimerRunning(true)
+    return () => setIsTimerRunning(false)
+  }, [currentBook])
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  const handleManualBookmark = () => {
+    if (contentRef.current) {
+      savePosition(contentRef.current.scrollTop)
+      setShowBookmarkToast(true)
+      setTimeout(() => setShowBookmarkToast(false), 2000)
+    }
+  }
+
   // Escape key moves selection
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -195,60 +254,73 @@ export default function ReaderView() {
     <div style={styles.wrapper}>
       {/* Top bar */}
       <header style={styles.topBar}>
-        <button
-          onClick={goHome}
-          style={styles.backButton}
-          onMouseEnter={e => { e.target.style.background = 'rgba(139, 105, 20, 0.1)' }}
-          onMouseLeave={e => { e.target.style.background = 'transparent' }}
-        >
-          <span style={styles.backArrow}>&larr;</span> Home
-        </button>
-        <h1 style={styles.bookTitle}>{currentBook.title}</h1>
+        <div style={styles.topBarLeft}>
+          <button
+            onClick={goHome}
+            style={styles.backButton}
+          >
+            <span style={styles.backArrow}>&larr;</span> <span className="desktop-only">Home</span>
+          </button>
+        </div>
+
+        <div style={styles.focusStats}>
+          <span style={styles.timerText}>{formatTime(focusTimeLeft)}</span>
+          <span style={styles.starsText}>{focusStars > 0 ? '✨'.repeat(focusStars) : '⏱️'}</span>
+        </div>
+
         <div style={styles.topBarRight}>
           <button
             onClick={() => {
-              if (isPacemakerOn) setIsPacemakerOn(false)
-              else {
+              if (isLineFocusOn) {
+                setIsLineFocusOn(false)
+                setIsPacemakerOn(false)
+              } else {
+                setIsLineFocusOn(true)
                 setIsPacemakerOn(true)
                 if (activeSentenceIdx === -1) setActiveSentenceIdx(0)
               }
             }}
             style={{
               ...styles.pacemakerBtn,
-              background: isPacemakerOn ? 'rgba(139, 105, 20, 0.15)' : 'transparent'
+              background: isLineFocusOn ? 'rgba(139, 105, 20, 0.25)' : 'transparent',
+              borderColor: isLineFocusOn ? '#8b6914' : '#e0d5be',
+              transform: isLineFocusOn ? 'scale(1.05)' : 'scale(1)'
             }}
           >
-            {isPacemakerOn ? '⏹ Stop' : '▶ Pacemaker'}
+            {isLineFocusOn ? '⏹' : '▶'} <span className="desktop-only">{isLineFocusOn ? 'Stop' : 'Focus'}</span>
           </button>
+
+          <button
+            onClick={handleManualBookmark}
+            style={styles.bookmarkBtn}
+            title="Save Position"
+          >
+            🔖
+          </button>
+
           <button
             onClick={() => setShowHints(!showHints)}
             style={{
               ...styles.hintBtn,
-              background: showHints ? 'rgba(139, 105, 20, 0.15)' : 'transparent'
+              background: showHints ? 'rgba(139, 105, 20, 0.15)' : 'transparent',
+              display: window.innerWidth < 600 && !showHints ? 'none' : 'flex'
             }}
           >
-            {showHints ? '🪄 Hints On' : '🪄 Hints'}
+            🪄 <span className="desktop-only">{showHints ? 'Hints On' : 'Hints'}</span>
           </button>
-          <button
-            onClick={() => setShowVocab(true)}
-            style={styles.vocabButton}
-            onMouseEnter={e => { e.target.style.background = 'rgba(139, 105, 20, 0.1)' }}
-            onMouseLeave={e => { e.target.style.background = 'transparent' }}
-            title="My Vocabulary"
-          >
-            {'\uD83D\uDCD6'} Vocab
-          </button>
+
           <button
             onClick={() => setShowSettings(true)}
             style={styles.settingsButton}
-            onMouseEnter={e => { e.target.style.background = 'rgba(139, 105, 20, 0.1)' }}
-            onMouseLeave={e => { e.target.style.background = 'transparent' }}
-            title="Settings"
           >
             &#9881;
           </button>
         </div>
       </header>
+
+      {showBookmarkToast && (
+        <div style={styles.toast}>Bookmark Saved! 🔖</div>
+      )}
 
       {/* Main reading area */}
       <div
@@ -262,7 +334,9 @@ export default function ReaderView() {
             fontSize,
             lineHeight,
             fontFamily: `${fontFamily}, Georgia, serif`,
+            opacity: isLineFocusOn ? 1 : 1, // container overall
           }}
+          className={isLineFocusOn ? 'line-focus-mode' : ''}
           onClick={handleContentClick}
         >
           {paragraphs.map((sentences, pIdx) => (
@@ -275,7 +349,12 @@ export default function ReaderView() {
                     key={sIdx}
                     className={`sentence${isActive ? ' sentence-active' : ''}`}
                     data-sentence-id={sentenceIdx}
-                    style={isActive ? styles.activeSentence : {}}
+                    style={{
+                      ...(isActive ? styles.activeSentence : {}),
+                      opacity: isLineFocusOn && !isActive ? 0.3 : 1,
+                      transition: 'opacity 0.4s ease',
+                      display: 'inline', // Ensure sentences wrap correctly
+                    }}
                   >
                     {sentence.tokens.map((token, tIdx) => {
                       const nextToken = sentence.tokens[tIdx + 1]
@@ -355,117 +434,131 @@ const styles = {
     borderBottom: '1px solid var(--border, #e0d5be)',
     background: 'var(--bg, #f4ecd8)',
     flexShrink: 0,
-    minHeight: 52,
+    minHeight: 60,
+    position: 'sticky',
+    top: 0,
+    zIndex: 1000,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+  },
+  topBarLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
   },
   backButton: {
     display: 'flex',
     alignItems: 'center',
-    gap: 6,
-    padding: '6px 14px',
-    fontSize: 15,
-    fontFamily: 'Georgia, serif',
-    color: 'var(--accent, #8b6914)',
-    background: 'transparent',
-    border: 'none',
-    borderRadius: 6,
-    cursor: 'pointer',
-    transition: 'background 0.2s',
-    letterSpacing: '0.02em',
-  },
-  backArrow: {
-    fontSize: 18,
-    lineHeight: 1,
-  },
-  bookTitle: {
-    fontSize: 16,
-    fontWeight: 400,
-    fontFamily: 'Georgia, serif',
-    color: 'var(--text, #3d3229)',
-    letterSpacing: '0.02em',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-    maxWidth: 400,
-    textAlign: 'center',
-    flex: 1,
-    margin: '0 16px',
-  },
-  topBarRight: {
-    display: 'flex',
-    alignItems: 'center',
     gap: 4,
-  },
-  vocabButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 4,
-    padding: '6px 12px',
+    padding: '8px 12px',
     fontSize: 14,
     fontFamily: 'Georgia, serif',
     color: 'var(--accent, #8b6914)',
     background: 'transparent',
     border: 'none',
-    borderRadius: 6,
+    borderRadius: 8,
     cursor: 'pointer',
     transition: 'background 0.2s',
-    letterSpacing: '0.02em',
-    whiteSpace: 'nowrap',
+  },
+  backArrow: {
+    fontSize: 18,
+    lineHeight: 1,
+  },
+  focusStats: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    background: 'rgba(139, 105, 20, 0.08)',
+    padding: '6px 14px',
+    borderRadius: 24,
+    border: '1px solid rgba(139, 105, 20, 0.15)',
+    position: 'absolute',
+    left: '50%',
+    transform: 'translateX(-50%)',
+  },
+  timerText: {
+    fontSize: 15,
+    fontWeight: 700,
+    fontFamily: 'monospace',
+    color: '#8b6914',
+    letterSpacing: '0.05em',
+  },
+  starsText: {
+    fontSize: 16,
+    letterSpacing: 1,
+  },
+  topBarRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  bookmarkBtn: {
+    fontSize: 18,
+    background: 'transparent',
+    border: '1px solid #e0d5be',
+    cursor: 'pointer',
+    padding: '6px 10px',
+    borderRadius: 8,
+    transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   settingsButton: {
-    padding: '6px 10px',
+    padding: '8px 10px',
     fontSize: 20,
-    color: 'var(--text-secondary, #8b7b6b)',
+    color: '#8b7b6b',
     background: 'transparent',
     border: 'none',
-    borderRadius: 6,
     cursor: 'pointer',
-    transition: 'background 0.2s',
-    lineHeight: 1,
   },
   scrollContainer: {
     flex: 1,
     overflow: 'auto',
     WebkitOverflowScrolling: 'touch',
+    background: 'var(--bg, #f4ecd8)',
   },
   content: {
-    maxWidth: 700,
+    maxWidth: 750,
     margin: '0 auto',
-    padding: '40px 32px 120px',
+    padding: '60px 24px 200px',
     color: 'var(--text, #3d3229)',
+    transition: 'all 0.5s ease',
   },
   paragraph: {
-    marginBottom: '1.2em',
+    marginBottom: '2em',
     textIndent: 0,
   },
   pacemakerBtn: {
     display: 'flex',
     alignItems: 'center',
     gap: 4,
-    padding: '6px 12px',
-    fontSize: 13,
+    padding: '8px 14px',
+    fontSize: 14,
+    fontWeight: 700,
     fontFamily: 'Georgia, serif',
-    color: 'var(--accent, #8b6914)',
-    border: '1px solid var(--border, #e0d5be)',
-    borderRadius: 6,
+    color: '#8b6914',
+    border: '1px solid #e0d5be',
+    borderRadius: 8,
     cursor: 'pointer',
-    transition: 'all 0.2s',
+    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
   },
   activeSentence: {
-    background: 'rgba(139, 105, 20, 0.12)',
-    boxShadow: '0 0 0 2px rgba(139, 105, 20, 0.05)',
-    borderRadius: 4,
-    transition: 'background 0.3s',
+    background: 'rgba(255, 255, 224, 0.95)',
+    boxShadow: '0 4px 12px rgba(139, 105, 20, 0.1), -4px 0 0 #8b6914',
+    borderRadius: '0 4px 4px 0',
+    padding: '2px 4px 2px 8px',
+    position: 'relative',
+    zIndex: 10,
   },
   hintBtn: {
     display: 'flex',
     alignItems: 'center',
     gap: 4,
-    padding: '6px 12px',
-    fontSize: 13,
-    fontFamily: 'Georgia, serif',
-    color: 'var(--accent, #8b6914)',
-    border: '1px solid var(--border, #e0d5be)',
-    borderRadius: 6,
+    padding: '8px 12px',
+    fontSize: 14,
+    color: '#8b6914',
+    border: '1px solid #e0d5be',
+    borderRadius: 8,
     cursor: 'pointer',
     transition: 'all 0.2s',
   },
@@ -474,10 +567,28 @@ const styles = {
     rubyAlign: 'center',
   },
   hintText: {
-    fontSize: '0.55em',
+    fontSize: '0.65em',
     color: '#a37d1a',
-    marginBottom: '0.1em',
-    fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-    fontWeight: 500,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+    padding: '0 2px',
+    borderRadius: 2,
+    marginBottom: '0.2em',
+    fontFamily: 'sans-serif',
+    fontWeight: 700,
+  },
+  toast: {
+    position: 'fixed',
+    top: 80,
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: '#3d3229',
+    color: '#fff',
+    padding: '12px 24px',
+    borderRadius: 8,
+    fontSize: 15,
+    zIndex: 2000,
+    boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
+    pointerEvents: 'none',
   },
 }
+
