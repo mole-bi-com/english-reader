@@ -1,6 +1,8 @@
-import { useState } from 'react'
 import { useReadingStore } from '../stores/reading-store'
+import { useSettingsStore } from '../stores/settings-store'
+import { useStatsStore } from '../stores/stats-store'
 import SettingsPanel from './SettingsPanel'
+import { useEffect } from 'react'
 
 const SAMPLE_TEXT = `It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.
 
@@ -210,14 +212,80 @@ const styles = {
     fontFamily: 'Georgia, serif',
     fontStyle: 'italic',
   },
+  // Header
+  header: {
+    textAlign: 'center',
+    marginBottom: 52,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  streakBadge: {
+    padding: '6px 16px',
+    background: 'linear-gradient(135deg, #ff9d00, #ff5e00)',
+    color: '#fff',
+    borderRadius: 20,
+    fontSize: 13,
+    fontWeight: 700,
+    marginBottom: 16,
+    boxShadow: '0 4px 12px rgba(255, 94, 0, 0.3)',
+    letterSpacing: '0.05em',
+    fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+  },
+  dailyProgressContainer: {
+    width: '100%',
+    maxWidth: 280,
+    marginTop: 8,
+  },
+  dailyProgressHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: 12,
+    color: '#8b7b6b',
+    marginBottom: 6,
+    fontFamily: 'Georgia, serif',
+  },
+  dailyProgressBar: {
+    width: '100%',
+    height: 8,
+    background: '#e8dfc9',
+    borderRadius: 4,
+    overflow: 'hidden',
+    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)',
+  },
+  dailyProgressFill: {
+    height: '100%',
+    background: 'linear-gradient(90deg, #8b6914, #b58d2a)',
+    borderRadius: 4,
+    transition: 'width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)',
+  },
 }
 
 export default function HomeView() {
   const [title, setTitle] = useState('')
   const [text, setText] = useState('')
   const [showSettings, setShowSettings] = useState(false)
+
   const books = useReadingStore(s => s.books)
   const startReading = useReadingStore(s => s.startReading)
+  const loadBooks = useReadingStore(s => s.loadBooks)
+
+  const dailyStreak = useSettingsStore(s => s.dailyStreak)
+  const loadSettings = useSettingsStore(s => s.loadSettings)
+
+  const fetchStats = useStatsStore(s => s.fetchStats)
+  const dailyStats = useStatsStore(s => s.dailyStats)
+
+  useEffect(() => {
+    loadBooks()
+    loadSettings()
+    fetchStats()
+  }, [loadBooks, loadSettings, fetchStats])
+
+  const todayStats = dailyStats.find(s => s.read_date.startsWith(new Date().toISOString().split('T')[0]))
+  const wordsToday = todayStats ? todayStats.words_read : 0
+  const dailyTarget = 500 // Example target
+  const progressPercent = Math.min(100, Math.round((wordsToday / dailyTarget) * 100))
 
   const canStart = text.trim().length > 0
 
@@ -260,11 +328,20 @@ export default function HomeView() {
       </button>
 
       <header style={styles.header}>
-        <span style={styles.icon} role="img" aria-label="book">
-          &#9783;
-        </span>
+        <div style={styles.streakBadge}>
+          🔥 {dailyStreak} DAY STREAK
+        </div>
         <h1 style={styles.title}>English Reader</h1>
-        <p style={styles.subtitle}>Read, look up words, and learn at your own pace</p>
+
+        <div style={styles.dailyProgressContainer}>
+          <div style={styles.dailyProgressHeader}>
+            <span>Today's Progress</span>
+            <span>{wordsToday} / {dailyTarget} words</span>
+          </div>
+          <div style={styles.dailyProgressBar}>
+            <div style={{ ...styles.dailyProgressFill, width: `${progressPercent}%` }} />
+          </div>
+        </div>
       </header>
 
       <section style={styles.section}>

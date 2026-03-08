@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useReadingStore } from '../stores/reading-store'
 import { useSettingsStore } from '../stores/settings-store'
 import { useVocabStore } from '../stores/vocab-store'
+import { useStatsStore } from '../stores/stats-store'
 import { splitSentences, splitWords, isWord } from '../utils/text-parser'
 import WordPopup from './WordPopup'
 import VocabSidebar from './VocabSidebar'
@@ -16,11 +17,21 @@ export default function ReaderView() {
   const fontFamily = useSettingsStore(s => s.fontFamily)
   const loadVocab = useVocabStore(s => s.loadVocab)
   const isWordSaved = useVocabStore(s => s.isWordSaved)
-  const vocab = useVocabStore(s => s.vocab) // subscribe to trigger re-render on save
+  const vocab = useVocabStore(s => s.vocab)
+
+  const addReadActivity = useStatsStore(s => s.addReadActivity)
+  const targetWpm = useSettingsStore(s => s.targetWpm)
+  const updateSetting = useSettingsStore(s => s.updateSetting)
 
   const [selectedWord, setSelectedWord] = useState(null)
   const [showVocab, setShowVocab] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+
+  // Pacemaker state
+  const [isPacemakerOn, setIsPacemakerOn] = useState(false)
+  const [activeSentenceIdx, setActiveSentenceIdx] = useState(-1)
+  const [readWordsCount, setReadWordsCount] = useState(0)
+  const pacemakerTimerRef = useRef(null)
   const contentRef = useRef(null)
   const scrollTimeoutRef = useRef(null)
 
@@ -72,7 +83,58 @@ export default function ReaderView() {
     }
   }, [])
 
-  // Escape key to close popup, sidebar, or settings
+  // Pacemaker Logic
+  useEffect(() => {
+    if (!isPacemakerOn || activeSentenceIdx === -1) {
+      if (pacemakerTimerRef.current) clearInterval(pacemakerTimerRef.current)
+      return
+    }
+
+    // Find the current sentence to calculate words
+    let count = 0
+    let currentSentenceText = ''
+    for (const p of paragraphs) {
+      for (const s of p) {
+        if (count === activeSentenceIdx) {
+          currentSentenceText = s.raw
+          break
+        }
+        count++
+      }
+      if (currentSentenceText) break
+    }
+
+    const wordCount = currentSentenceText.split(/\s+/).length
+    const durationMs = (wordCount / targetWpm) * 60 * 1000
+
+    pacemakerTimerRef.current = setTimeout(() => {
+      const totalSentences = paragraphs.flat().length
+      if (activeSentenceIdx < totalSentences - 1) {
+        setActiveSentenceIdx(prev => prev + 1)
+        setReadWordsCount(prev => prev + wordCount)
+
+        // Auto-scroll to keep active sentence in view
+        const activeEl = document.querySelector(`[data-sentence-id="${activeSentenceIdx + 1}"]`)
+        if (activeEl && contentRef.current) {
+          activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      } else {
+        setIsPacemakerOn(false)
+      }
+    }, durationMs)
+
+    return () => clearTimeout(pacemakerTimerRef.current)
+  }, [isPacemakerOn, activeSentenceIdx, targetWpm, paragraphs])
+
+  // Sync activity words to DB periodically
+  useEffect(() => {
+    if (readWordsCount >= 50) {
+      addReadActivity(readWordsCount, 1) // Assume roughly 1 min per 50-100 words
+      setReadWordsCount(0)
+    }
+  }, [readWordsCount, addReadActivity])
+
+  // Escape key moves selection
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -140,6 +202,21 @@ export default function ReaderView() {
         <h1 style={styles.bookTitle}>{currentBook.title}</h1>
         <div style={styles.topBarRight}>
           <button
+            onClick={() => {
+              if (isPacemakerOn) setIsPacemakerOn(false)
+              else {
+                setIsPacemakerOn(true)
+                if (activeSentenceIdx === -1) setActiveSentenceIdx(0)
+              }
+            }}
+            style={{
+              ...styles.pacemakerBtn,
+              background: isPacemakerOn ? 'rgba(139, 105, 20, 0.15)' : 'transparent'
+            }}
+          >
+            {isPacemakerOn ? '⏹ Stop' : '▶ Pacemaker'}
+          </button>
+          <button
             onClick={() => setShowVocab(true)}
             style={styles.vocabButton}
             onMouseEnter={e => { e.target.style.background = 'rgba(139, 105, 20, 0.1)' }}
@@ -179,8 +256,14 @@ export default function ReaderView() {
             <p key={pIdx} style={styles.paragraph}>
               {sentences.map((sentence, sIdx) => {
                 const sentenceIdx = globalSentenceIdx++
+                const isActive = activeSentenceIdx === sentenceIdx
                 return (
-                  <span key={sIdx} className="sentence">
+                  <span
+                    key={sIdx}
+                    className={`sentence${isActive ? ' sentence-active' : ''}`}
+                    data-sentence-id={sentenceIdx}
+                    style={isActive ? styles.activeSentence : {}}
+                  >
                     {sentence.tokens.map((token, tIdx) => {
                       const nextToken = sentence.tokens[tIdx + 1]
                       // Add space after token unless next token is punctuation
@@ -331,5 +414,24 @@ const styles = {
   paragraph: {
     marginBottom: '1.2em',
     textIndent: 0,
+  },
+  pacemakerBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    padding: '6px 12px',
+    fontSize: 13,
+    fontFamily: 'Georgia, serif',
+    color: 'var(--accent, #8b6914)',
+    border: '1px solid var(--border, #e0d5be)',
+    borderRadius: 6,
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  activeSentence: {
+    background: 'rgba(139, 105, 20, 0.12)',
+    boxShadow: '0 0 0 2px rgba(139, 105, 20, 0.05)',
+    borderRadius: 4,
+    transition: 'background 0.3s',
   },
 }

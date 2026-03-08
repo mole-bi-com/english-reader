@@ -6,6 +6,8 @@ const defaults = {
   lineHeight: 1.9,
   fontFamily: 'Georgia',
   apiKey: '',
+  dailyStreak: 0,
+  targetWpm: 200,
 }
 
 export const useSettingsStore = create((set, get) => ({
@@ -18,13 +20,14 @@ export const useSettingsStore = create((set, get) => ({
       if (res.ok) {
         const saved = await res.json()
         if (saved && saved.id) {
-          // Map DB snake_case to CamelCase if needed, but here we used theme, font_size etc in DB
           set({
             theme: saved.theme || defaults.theme,
             fontSize: saved.font_size || defaults.fontSize,
             lineHeight: saved.line_height || defaults.lineHeight,
             fontFamily: saved.font_family || defaults.fontFamily,
             apiKey: saved.api_key || defaults.apiKey,
+            dailyStreak: saved.daily_streak || 0,
+            targetWpm: saved.target_wpm || defaults.targetWpm,
             loaded: true
           })
           return
@@ -57,6 +60,8 @@ export const useSettingsStore = create((set, get) => ({
           lineHeight: newSettings.lineHeight,
           fontFamily: newSettings.fontFamily,
           apiKey: newSettings.apiKey,
+          dailyStreak: newSettings.dailyStreak,
+          targetWpm: newSettings.targetWpm,
         }),
       })
     } catch (err) {
@@ -68,7 +73,9 @@ export const useSettingsStore = create((set, get) => ({
       fontSize: newSettings.fontSize,
       lineHeight: newSettings.lineHeight,
       fontFamily: newSettings.fontFamily,
-      apiKey: newSettings.apiKey
+      apiKey: newSettings.apiKey,
+      dailyStreak: newSettings.dailyStreak,
+      targetWpm: newSettings.targetWpm,
     }))
   },
 }))
