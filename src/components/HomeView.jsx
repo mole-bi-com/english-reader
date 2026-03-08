@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
 import { useReadingStore } from '../stores/reading-store'
 import { useSettingsStore } from '../stores/settings-store'
 import { useStatsStore } from '../stores/stats-store'
+import { useVocabStore } from '../stores/vocab-store'
 import SettingsPanel from './SettingsPanel'
+import { useEffect, useState } from 'react'
 
 const SAMPLE_TEXT = `It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.
 
@@ -276,11 +277,15 @@ export default function HomeView() {
   const fetchStats = useStatsStore(s => s.fetchStats)
   const dailyStats = useStatsStore(s => s.dailyStats)
 
+  const vocab = useVocabStore(s => s.vocab)
+  const loadVocab = useVocabStore(s => s.loadVocab)
+
   useEffect(() => {
     loadBooks()
     loadSettings()
     fetchStats()
-  }, [loadBooks, loadSettings, fetchStats])
+    loadVocab()
+  }, [loadBooks, loadSettings, fetchStats, loadVocab])
 
   const todayStats = dailyStats.find(s => s.read_date.startsWith(new Date().toISOString().split('T')[0]))
   const wordsToday = todayStats ? todayStats.words_read : 0
