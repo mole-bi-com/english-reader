@@ -1,8 +1,8 @@
+import { useState, useEffect } from 'react'
 import { useReadingStore } from '../stores/reading-store'
 import { useSettingsStore } from '../stores/settings-store'
 import { useStatsStore } from '../stores/stats-store'
 import SettingsPanel from './SettingsPanel'
-import { useEffect } from 'react'
 
 const SAMPLE_TEXT = `It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.
 
