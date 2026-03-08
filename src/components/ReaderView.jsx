@@ -31,6 +31,10 @@ export default function ReaderView() {
   const [isPacemakerOn, setIsPacemakerOn] = useState(false)
   const [activeSentenceIdx, setActiveSentenceIdx] = useState(-1)
   const [readWordsCount, setReadWordsCount] = useState(0)
+
+  // Hint Mode state
+  const [showHints, setShowHints] = useState(false)
+
   const pacemakerTimerRef = useRef(null)
   const contentRef = useRef(null)
   const scrollTimeoutRef = useRef(null)
@@ -217,6 +221,15 @@ export default function ReaderView() {
             {isPacemakerOn ? '⏹ Stop' : '▶ Pacemaker'}
           </button>
           <button
+            onClick={() => setShowHints(!showHints)}
+            style={{
+              ...styles.hintBtn,
+              background: showHints ? 'rgba(139, 105, 20, 0.15)' : 'transparent'
+            }}
+          >
+            {showHints ? '🪄 Hints On' : '🪄 Hints'}
+          </button>
+          <button
             onClick={() => setShowVocab(true)}
             style={styles.vocabButton}
             onMouseEnter={e => { e.target.style.background = 'rgba(139, 105, 20, 0.1)' }}
@@ -273,6 +286,8 @@ export default function ReaderView() {
                       if (isWord(token)) {
                         const wordLower = token.toLowerCase()
                         const savedClass = isWordSaved(wordLower) ? ' word-saved' : ''
+                        const hint = currentBook.hints?.[wordLower]
+
                         return (
                           <span key={tIdx}>
                             <span
@@ -280,7 +295,14 @@ export default function ReaderView() {
                               data-word={wordLower}
                               data-sentence-idx={sentenceIdx}
                             >
-                              {token}
+                              {showHints && hint ? (
+                                <ruby style={styles.hintRuby}>
+                                  {token}
+                                  <rt style={styles.hintText}>{hint}</rt>
+                                </ruby>
+                              ) : (
+                                token
+                              )}
                             </span>
                             {spacer}
                           </span>
@@ -433,5 +455,29 @@ const styles = {
     boxShadow: '0 0 0 2px rgba(139, 105, 20, 0.05)',
     borderRadius: 4,
     transition: 'background 0.3s',
+  },
+  hintBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    padding: '6px 12px',
+    fontSize: 13,
+    fontFamily: 'Georgia, serif',
+    color: 'var(--accent, #8b6914)',
+    border: '1px solid var(--border, #e0d5be)',
+    borderRadius: 6,
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  hintRuby: {
+    rubyPosition: 'over',
+    rubyAlign: 'center',
+  },
+  hintText: {
+    fontSize: '0.55em',
+    color: '#a37d1a',
+    marginBottom: '0.1em',
+    fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+    fontWeight: 500,
   },
 }

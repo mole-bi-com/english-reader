@@ -309,6 +309,18 @@ export default function HomeView() {
     return Math.min(100, Math.round((book.last_position / book.text.length) * 100))
   }
 
+  const calculateDifficulty = (bookText) => {
+    if (!bookText || vocab.length === 0) return 0
+    // Simple word-based intersection
+    const words = bookText.toLowerCase().match(/\b\w{3,}\b/g) || [] // only 3+ letter words
+    if (words.length === 0) return 100
+
+    const uniqueWords = [...new Set(words)]
+    const knownWords = uniqueWords.filter(w => vocab.some(v => v.word.toLowerCase() === w))
+
+    return Math.round((knownWords.length / uniqueWords.length) * 100)
+  }
+
   const formatDate = (iso) => {
     const d = new Date(iso)
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -415,7 +427,7 @@ export default function HomeView() {
                     <div>
                       <div style={styles.bookTitle}>{book.title}</div>
                       <div style={styles.bookMeta}>
-                        {formatDate(book.created_at)}
+                        {formatDate(book.created_at)} • {calculateDifficulty(book.text)}% known
                       </div>
                     </div>
                     <div style={styles.bookProgress}>

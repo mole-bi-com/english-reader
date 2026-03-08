@@ -9,24 +9,29 @@ export const useReadingStore = create((set, get) => ({
       const res = await fetch('/api/books')
       if (res.ok) {
         const books = await res.json()
-        set({ books })
+        set({ books: books.map(b => ({ ...b, hints: b.hints || {} })) })
       } else {
         const data = localStorage.getItem('books')
-        if (data) set({ books: JSON.parse(data) })
+        if (data) set({ books: JSON.parse(data).map(b => ({ ...b, hints: b.hints || {} })) })
       }
     } catch (err) {
       const data = localStorage.getItem('books')
-      if (data) set({ books: JSON.parse(data) })
+      if (data) set({ books: JSON.parse(data).map(b => ({ ...b, hints: b.hints || {} })) })
     }
   },
 
   startReading: async (title, text) => {
     const books = get().books
     const existing = books.find(b => b.title === title)
-    const book = existing || { title, text, last_position: 0, created_at: new Date().toISOString() }
+    const book = existing || {
+      title,
+      text,
+      last_position: 0,
+      created_at: new Date().toISOString(),
+      hints: {}
+    }
 
     if (!existing) {
-      book.text = text
       books.unshift(book)
 
       try {
@@ -35,6 +40,23 @@ export const useReadingStore = create((set, get) => ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title, text }),
         })
+
+        // Trigger AI analysis in background
+        fetch('/api/analyze-text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, bookTitle: title }),
+        })
+          .then(res => res.json())
+          .then(hints => {
+            if (hints && !hints.error) {
+              set(state => ({
+                books: state.books.map(b => b.title === title ? { ...b, hints } : b),
+                currentBook: get().currentBook?.title === title ? { ...get().currentBook, hints } : get().currentBook
+              }))
+            }
+          })
+          .catch(console.error)
       } catch (err) {
         console.error('Failed to sync book to API', err)
       }
