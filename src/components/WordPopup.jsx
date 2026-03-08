@@ -108,6 +108,11 @@ export default function WordPopup({ word, sentence, rect, onClose, bookTitle }) 
       top = rect.top - popupRect.height - gap
     }
 
+    // Don't go off top edge
+    if (top < 16) {
+      top = 16
+    }
+
     // If popup overflows right, shift left
     if (left + popupRect.width > viewportW - 16) {
       left = viewportW - popupRect.width - 16
@@ -322,6 +327,8 @@ const styles = {
     boxShadow: '0 4px 24px rgba(61, 50, 41, 0.18), 0 1px 4px rgba(61, 50, 41, 0.08)',
     maxWidth: 380,
     minWidth: 260,
+    maxHeight: 'calc(100vh - 32px)',
+    overflowY: 'auto',
     padding: '14px 16px',
     fontFamily: 'Georgia, serif',
     color: '#3d3229',
