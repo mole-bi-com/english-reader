@@ -23,7 +23,7 @@ export const useReadingStore = create((set, get) => ({
   startReading: async (title, text) => {
     const books = get().books
     const existing = books.find(b => b.title === title)
-    const book = existing || { title, text, last_position: 0, createdAt: new Date().toISOString() }
+    const book = existing || { title, text, last_position: 0, created_at: new Date().toISOString() }
 
     if (!existing) {
       book.text = text

@@ -38,10 +38,10 @@ export default function ReaderView() {
 
   // Restore scroll position on mount
   useEffect(() => {
-    if (currentBook?.lastPosition && contentRef.current) {
+    if (currentBook?.last_position && contentRef.current) {
       // Use requestAnimationFrame to ensure the DOM is rendered
       requestAnimationFrame(() => {
-        contentRef.current.scrollTop = currentBook.lastPosition
+        contentRef.current.scrollTop = currentBook.last_position
       })
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

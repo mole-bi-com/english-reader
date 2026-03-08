@@ -238,7 +238,7 @@ export default function HomeView() {
 
   const getProgress = (book) => {
     if (!book.text) return 0
-    return Math.min(100, Math.round((book.lastPosition / book.text.length) * 100))
+    return Math.min(100, Math.round((book.last_position / book.text.length) * 100))
   }
 
   const formatDate = (iso) => {
@@ -338,7 +338,7 @@ export default function HomeView() {
                     <div>
                       <div style={styles.bookTitle}>{book.title}</div>
                       <div style={styles.bookMeta}>
-                        {formatDate(book.createdAt)}
+                        {formatDate(book.created_at)}
                       </div>
                     </div>
                     <div style={styles.bookProgress}>
