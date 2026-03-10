@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { generateHintsWithGemini } from '../services/hints'
+import { useSettingsStore } from './settings-store'
 
 export const useReadingStore = create((set, get) => ({
   books: [],
@@ -49,21 +51,38 @@ export const useReadingStore = create((set, get) => ({
 
     // Trigger AI analysis if hints are missing
     if (!book.hints || Object.keys(book.hints).length === 0) {
+      const { apiKey, hintWordCount } = useSettingsStore.getState()
+      const applyHints = (hints) => {
+        set(state => ({
+          books: state.books.map(b => b.title === title ? { ...b, hints } : b),
+          currentBook: get().currentBook?.title === title ? { ...get().currentBook, hints } : get().currentBook
+        }))
+      }
+
       fetch('/api/analyze-text', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: book.text, bookTitle: book.title }),
+        body: JSON.stringify({ text: book.text, bookTitle: book.title, hintWordCount }),
       })
-        .then(res => res.json())
+        .then(async res => {
+          if (!res.ok || res.headers.get('content-type')?.includes('text/html')) {
+            throw new Error('API unavailable')
+          }
+          return res.json()
+        })
         .then(hints => {
-          if (hints && !hints.error) {
-            set(state => ({
-              books: state.books.map(b => b.title === title ? { ...b, hints } : b),
-              currentBook: get().currentBook?.title === title ? { ...get().currentBook, hints } : get().currentBook
-            }))
+          if (hints && !hints.error) applyHints(hints)
+        })
+        .catch(async () => {
+          // Fallback: call Gemini directly from client
+          if (!apiKey) return
+          try {
+            const hints = await generateHintsWithGemini(book.text, apiKey, hintWordCount)
+            applyHints(hints)
+          } catch (err) {
+            console.error('Client-side hint generation failed:', err)
           }
         })
-        .catch(console.error)
     }
 
     set({ currentBook: book, books })

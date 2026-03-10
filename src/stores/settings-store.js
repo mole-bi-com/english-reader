@@ -8,6 +8,7 @@ const defaults = {
   apiKey: '',
   dailyStreak: 0,
   targetWpm: 200,
+  hintWordCount: 20,
 }
 
 export const useSettingsStore = create((set, get) => ({
@@ -20,6 +21,9 @@ export const useSettingsStore = create((set, get) => ({
       if (res.ok) {
         const saved = await res.json()
         if (saved && saved.id) {
+          // hintWordCount comes from localStorage only (not in DB schema)
+          const local = localStorage.getItem('settings')
+          const localParsed = local ? JSON.parse(local) : {}
           set({
             theme: saved.theme || defaults.theme,
             fontSize: saved.font_size || defaults.fontSize,
@@ -28,6 +32,7 @@ export const useSettingsStore = create((set, get) => ({
             apiKey: saved.api_key || defaults.apiKey,
             dailyStreak: saved.daily_streak || 0,
             targetWpm: saved.target_wpm || defaults.targetWpm,
+            hintWordCount: localParsed.hintWordCount ?? defaults.hintWordCount,
             loaded: true
           })
           return
@@ -76,6 +81,7 @@ export const useSettingsStore = create((set, get) => ({
       apiKey: newSettings.apiKey,
       dailyStreak: newSettings.dailyStreak,
       targetWpm: newSettings.targetWpm,
+      hintWordCount: newSettings.hintWordCount,
     }))
   },
 }))
