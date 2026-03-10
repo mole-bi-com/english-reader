@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { generateHintsWithGemini } from '../services/hints'
 import { useSettingsStore } from './settings-store'
 import { useKnownWordsStore } from './known-words-store'
+import { useVocabStore } from './vocab-store'
 
 export const useReadingStore = create((set, get) => ({
   books: [],
@@ -54,6 +55,7 @@ export const useReadingStore = create((set, get) => ({
 
     const { apiKey, hintWordCount } = useSettingsStore.getState()
     const knownWords = useKnownWordsStore.getState().getKnownList()
+    const hardWords = useVocabStore.getState().vocab.slice(0, 100).map(v => v.word)
 
     _setHintStatus(title, 'loading')
 
@@ -61,7 +63,7 @@ export const useReadingStore = create((set, get) => ({
       const res = await fetch('/api/analyze-text', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: book.text, bookTitle: book.title, hintWordCount, knownWords }),
+        body: JSON.stringify({ text: book.text, bookTitle: book.title, hintWordCount, knownWords, hardWords }),
       })
 
       if (!res.ok || res.headers.get('content-type')?.includes('text/html')) {
@@ -81,7 +83,7 @@ export const useReadingStore = create((set, get) => ({
         return
       }
       try {
-        const hints = await generateHintsWithGemini(book.text, apiKey, hintWordCount, knownWords)
+        const hints = await generateHintsWithGemini(book.text, apiKey, hintWordCount, knownWords, hardWords)
         _applyHints(title, hints)
       } catch (err) {
         console.error('Hint generation failed:', err)
