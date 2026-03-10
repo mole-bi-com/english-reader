@@ -27,7 +27,8 @@ export default async function handler(req, res) {
 
     if (!apiKey) return res.status(400).json({ error: 'Gemini API Key not configured' })
 
-    const prompt = `Analyze the following English text and identify approximately ${count} words this specific user would find challenging.${profileLine}${excludeLine}
+    const prompt = `Analyze the following English text and identify approximately ${count} words this specific user would find challenging.
+The user has PhD-level expertise in biology and master's-level expertise in physics, so do NOT suggest technical jargon from those fields (e.g. biological terms, physics terminology).${profileLine}${excludeLine}
 For each word, provide its short Korean meaning (1-3 words).
 Return ONLY a JSON object where the key is the English word (lowercase) and the value is the Korean meaning.
 

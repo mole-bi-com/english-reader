@@ -9,7 +9,8 @@ export async function generateHintsWithGemini(text, apiKey, wordCount = 20, know
     ? `\nThe user has previously looked up these words (they found them difficult): ${hardWords.slice(0, 50).join(', ')}. Use this to calibrate the difficulty level of hints you select.`
     : ''
 
-  const prompt = `Analyze the following English text and identify approximately ${count} words this specific user would find challenging.${profileLine}${excludeLine}
+  const prompt = `Analyze the following English text and identify approximately ${count} words this specific user would find challenging.
+The user has PhD-level expertise in biology and master's-level expertise in physics, so do NOT suggest technical jargon from those fields (e.g. biological terms, physics terminology).${profileLine}${excludeLine}
 For each word, provide its short Korean meaning (1-3 words).
 Return ONLY a JSON object where the key is the English word (lowercase) and the value is the Korean meaning.
 
