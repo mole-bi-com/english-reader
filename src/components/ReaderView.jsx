@@ -407,6 +407,7 @@ export default function ReaderView() {
                                         e.stopPropagation()
                                         markKnown(wordLower)
                                       }}
+                                      onClick={(e) => e.stopPropagation()}
                                     >×</button>
                                   </rt>
                                 </ruby>
