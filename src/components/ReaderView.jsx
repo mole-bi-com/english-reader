@@ -3,6 +3,7 @@ import { useReadingStore } from '../stores/reading-store'
 import { useSettingsStore } from '../stores/settings-store'
 import { useVocabStore } from '../stores/vocab-store'
 import { useStatsStore } from '../stores/stats-store'
+import { useKnownWordsStore } from '../stores/known-words-store'
 import { splitSentences, splitWords, isWord } from '../utils/text-parser'
 import WordPopup from './WordPopup'
 import VocabSidebar from './VocabSidebar'
@@ -12,12 +13,15 @@ export default function ReaderView() {
   const currentBook = useReadingStore(s => s.currentBook)
   const goHome = useReadingStore(s => s.goHome)
   const savePosition = useReadingStore(s => s.savePosition)
+  const generateHints = useReadingStore(s => s.generateHints)
   const fontSize = useSettingsStore(s => s.fontSize)
   const lineHeight = useSettingsStore(s => s.lineHeight)
   const fontFamily = useSettingsStore(s => s.fontFamily)
   const loadVocab = useVocabStore(s => s.loadVocab)
   const isWordSaved = useVocabStore(s => s.isWordSaved)
   const vocab = useVocabStore(s => s.vocab)
+  const markKnown = useKnownWordsStore(s => s.markKnown)
+  const isKnown = useKnownWordsStore(s => s.isKnown)
 
   const addReadActivity = useStatsStore(s => s.addReadActivity)
   const targetWpm = useSettingsStore(s => s.targetWpm)
@@ -299,14 +303,29 @@ export default function ReaderView() {
           </button>
 
           <button
-            onClick={() => setShowHints(!showHints)}
+            onClick={() => {
+              const next = !showHints
+              setShowHints(next)
+              // Trigger generation if turning on and no hints yet (or previous error)
+              if (next && currentBook && ['idle', 'error'].includes(currentBook.hintStatus ?? 'idle') && Object.keys(currentBook.hints ?? {}).length === 0) {
+                generateHints(currentBook.title)
+              }
+            }}
             style={{
               ...styles.hintBtn,
               background: showHints ? 'rgba(139, 105, 20, 0.15)' : 'transparent',
-              display: window.innerWidth < 600 && !showHints ? 'none' : 'flex'
+              display: window.innerWidth < 600 && !showHints ? 'none' : 'flex',
+              opacity: currentBook?.hintStatus === 'loading' ? 0.7 : 1,
             }}
+            title={currentBook?.hintStatus === 'error' ? 'Hint analysis failed — click to retry' : undefined}
           >
-            🪄 <span className="desktop-only">{showHints ? 'Hints On' : 'Hints'}</span>
+            {currentBook?.hintStatus === 'loading' ? '⏳' : '🪄'}
+            {' '}
+            <span className="desktop-only">
+              {currentBook?.hintStatus === 'loading' ? 'Analyzing…'
+                : currentBook?.hintStatus === 'error' ? 'Retry Hints'
+                : showHints ? 'Hints On' : 'Hints'}
+            </span>
           </button>
 
           <button
@@ -366,6 +385,7 @@ export default function ReaderView() {
                         const wordLower = token.toLowerCase()
                         const savedClass = isWordSaved(wordLower) ? ' word-saved' : ''
                         const hint = currentBook.hints?.[wordLower]
+                        const wordIsKnown = isKnown(wordLower)
 
                         return (
                           <span key={tIdx}>
@@ -374,10 +394,21 @@ export default function ReaderView() {
                               data-word={wordLower}
                               data-sentence-idx={sentenceIdx}
                             >
-                              {showHints && hint ? (
+                              {showHints && hint && !wordIsKnown ? (
                                 <ruby style={styles.hintRuby}>
                                   {token}
-                                  <rt style={styles.hintText}>{hint}</rt>
+                                  <rt style={styles.hintText}>
+                                    {hint}
+                                    <button
+                                      style={styles.knownBtn}
+                                      title="I know this word"
+                                      onMouseDown={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        markKnown(wordLower)
+                                      }}
+                                    >×</button>
+                                  </rt>
                                 </ruby>
                               ) : (
                                 token
@@ -575,6 +606,20 @@ const styles = {
     marginBottom: '0.2em',
     fontFamily: 'sans-serif',
     fontWeight: 700,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 2,
+  },
+  knownBtn: {
+    background: 'none',
+    border: 'none',
+    padding: '0 1px',
+    margin: 0,
+    fontSize: '1em',
+    color: '#a37d1a',
+    cursor: 'pointer',
+    lineHeight: 1,
+    opacity: 0.6,
   },
   toast: {
     position: 'fixed',

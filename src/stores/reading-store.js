@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { generateHintsWithGemini } from '../services/hints'
 import { useSettingsStore } from './settings-store'
+import { useKnownWordsStore } from './known-words-store'
 
 export const useReadingStore = create((set, get) => ({
   books: [],
@@ -11,14 +12,81 @@ export const useReadingStore = create((set, get) => ({
       const res = await fetch('/api/books')
       if (res.ok) {
         const books = await res.json()
-        set({ books: books.map(b => ({ ...b, hints: b.hints || {} })) })
+        set({ books: books.map(b => ({ ...b, hints: b.hints || {}, hintStatus: Object.keys(b.hints || {}).length > 0 ? 'ready' : 'idle' })) })
       } else {
         const data = localStorage.getItem('books')
-        if (data) set({ books: JSON.parse(data).map(b => ({ ...b, hints: b.hints || {} })) })
+        if (data) set({ books: JSON.parse(data).map(b => ({ ...b, hints: b.hints || {}, hintStatus: Object.keys(b.hints || {}).length > 0 ? 'ready' : 'idle' })) })
       }
     } catch (err) {
       const data = localStorage.getItem('books')
-      if (data) set({ books: JSON.parse(data).map(b => ({ ...b, hints: b.hints || {} })) })
+      if (data) set({ books: JSON.parse(data).map(b => ({ ...b, hints: b.hints || {}, hintStatus: Object.keys(b.hints || {}).length > 0 ? 'ready' : 'idle' })) })
+    }
+  },
+
+  // Set hint status for a book and update currentBook if it matches
+  _setHintStatus: (title, status) => {
+    set(state => ({
+      books: state.books.map(b => b.title === title ? { ...b, hintStatus: status } : b),
+      currentBook: state.currentBook?.title === title
+        ? { ...state.currentBook, hintStatus: status }
+        : state.currentBook,
+    }))
+  },
+
+  // Apply generated hints to a book
+  _applyHints: (title, hints) => {
+    set(state => ({
+      books: state.books.map(b => b.title === title ? { ...b, hints, hintStatus: 'ready' } : b),
+      currentBook: state.currentBook?.title === title
+        ? { ...state.currentBook, hints, hintStatus: 'ready' }
+        : state.currentBook,
+    }))
+    // Persist to localStorage
+    const { books } = get()
+    localStorage.setItem('books', JSON.stringify(books))
+  },
+
+  // Generate hints on demand — called when user toggles Hints On or retries
+  generateHints: async (title) => {
+    const { books, currentBook, _setHintStatus, _applyHints } = get()
+    const book = books.find(b => b.title === title) ?? currentBook
+    if (!book) return
+
+    const { apiKey, hintWordCount } = useSettingsStore.getState()
+    const knownWords = useKnownWordsStore.getState().getKnownList()
+
+    _setHintStatus(title, 'loading')
+
+    try {
+      const res = await fetch('/api/analyze-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: book.text, bookTitle: book.title, hintWordCount, knownWords }),
+      })
+
+      if (!res.ok || res.headers.get('content-type')?.includes('text/html')) {
+        throw new Error('API unavailable')
+      }
+
+      const hints = await res.json()
+      if (hints && !hints.error) {
+        _applyHints(title, hints)
+        return
+      }
+      throw new Error(hints.error ?? 'Invalid response')
+    } catch {
+      // Fallback: call Gemini directly from client
+      if (!apiKey) {
+        _setHintStatus(title, 'error')
+        return
+      }
+      try {
+        const hints = await generateHintsWithGemini(book.text, apiKey, hintWordCount, knownWords)
+        _applyHints(title, hints)
+      } catch (err) {
+        console.error('Hint generation failed:', err)
+        _setHintStatus(title, 'error')
+      }
     }
   },
 
@@ -30,12 +98,12 @@ export const useReadingStore = create((set, get) => ({
       text,
       last_position: 0,
       created_at: new Date().toISOString(),
-      hints: {}
+      hints: {},
+      hintStatus: 'idle',
     }
 
     if (!existing) {
       books.unshift(book)
-
       try {
         await fetch('/api/books', {
           method: 'POST',
@@ -45,47 +113,15 @@ export const useReadingStore = create((set, get) => ({
       } catch (err) {
         console.error('Failed to sync book to API', err)
       }
-
       localStorage.setItem('books', JSON.stringify(books))
     }
 
-    // Trigger AI analysis if hints are missing
+    set({ currentBook: { ...book }, books })
+
+    // Auto-generate hints if none exist yet
     if (!book.hints || Object.keys(book.hints).length === 0) {
-      const { apiKey, hintWordCount } = useSettingsStore.getState()
-      const applyHints = (hints) => {
-        set(state => ({
-          books: state.books.map(b => b.title === title ? { ...b, hints } : b),
-          currentBook: get().currentBook?.title === title ? { ...get().currentBook, hints } : get().currentBook
-        }))
-      }
-
-      fetch('/api/analyze-text', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: book.text, bookTitle: book.title, hintWordCount }),
-      })
-        .then(async res => {
-          if (!res.ok || res.headers.get('content-type')?.includes('text/html')) {
-            throw new Error('API unavailable')
-          }
-          return res.json()
-        })
-        .then(hints => {
-          if (hints && !hints.error) applyHints(hints)
-        })
-        .catch(async () => {
-          // Fallback: call Gemini directly from client
-          if (!apiKey) return
-          try {
-            const hints = await generateHintsWithGemini(book.text, apiKey, hintWordCount)
-            applyHints(hints)
-          } catch (err) {
-            console.error('Client-side hint generation failed:', err)
-          }
-        })
+      get().generateHints(title)
     }
-
-    set({ currentBook: book, books })
   },
 
   savePosition: async (position) => {

@@ -1,11 +1,14 @@
 // Client-side Gemini fallback for hint generation
 // Used when /api/analyze-text is unavailable (local/Electron env)
-export async function generateHintsWithGemini(text, apiKey, wordCount = 20) {
+export async function generateHintsWithGemini(text, apiKey, wordCount = 20, knownWords = []) {
   const count = Math.min(60, Math.max(5, wordCount))
+  const excludeLine = knownWords.length > 0
+    ? `\nDo NOT include these words the user already knows: ${knownWords.slice(0, 150).join(', ')}.`
+    : ''
 
   const prompt = `Analyze the following English text. Identify approximately ${count} words that would be difficult for an intermediate English learner (B1-B2 level).
 For each word, provide its short Korean meaning (1-3 words).
-Return ONLY a JSON object where the key is the English word (lowercase) and the value is the Korean meaning.
+Return ONLY a JSON object where the key is the English word (lowercase) and the value is the Korean meaning.${excludeLine}
 
 Example: {"sophisticated": "정교한", "unprecedented": "전례 없는"}
 
