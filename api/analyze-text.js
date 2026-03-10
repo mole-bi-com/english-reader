@@ -1,8 +1,11 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { text, bookTitle, hintWordCount = 20 } = req.body
+  const { text, bookTitle, hintWordCount = 20, knownWords = [] } = req.body
   const count = Math.min(60, Math.max(5, hintWordCount))
+  const excludeLine = Array.isArray(knownWords) && knownWords.length > 0
+    ? `\nDo NOT include these words the user already knows: ${knownWords.slice(0, 150).join(', ')}.`
+    : ''
 
   try {
     // Get API key from env first, fall back to DB settings
@@ -23,7 +26,7 @@ export default async function handler(req, res) {
 
     const prompt = `Analyze the following English text. Identify approximately ${count} words that would be difficult for an intermediate English learner (B1-B2 level).
 For each word, provide its short Korean meaning (1-3 words).
-Return ONLY a JSON object where the key is the English word (lowercase) and the value is the Korean meaning.
+Return ONLY a JSON object where the key is the English word (lowercase) and the value is the Korean meaning.${excludeLine}
 
 Example: {"sophisticated": "정교한", "unprecedented": "전례 없는"}
 
