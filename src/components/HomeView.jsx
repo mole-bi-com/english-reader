@@ -786,7 +786,6 @@ export default function HomeView() {
 
       {(() => {
         const usage = getTokenUsage()
-        if (usage.calls === 0) return null
         const cost = (usage.input * 0.15 + usage.output * 0.60) / 1_000_000
         return (
           <>
