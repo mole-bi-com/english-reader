@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useReadingStore, trackTokenUsage } from '../stores/reading-store'
 import { useSettingsStore } from '../stores/settings-store'
 import { useVocabStore } from '../stores/vocab-store'
-import { useStatsStore } from '../stores/stats-store'
 import { useKnownWordsStore } from '../stores/known-words-store'
 import { splitSentences, splitWords, isWord } from '../utils/text-parser'
 import WordPopup from './WordPopup'
@@ -27,27 +26,14 @@ export default function ReaderView() {
   const sessionLookups = useReadingStore(s => s.sessionLookups)
   const getSessionMinutes = useReadingStore(s => s.getSessionMinutes)
 
-  const addReadActivity = useStatsStore(s => s.addReadActivity)
-  const targetWpm = useSettingsStore(s => s.targetWpm)
-  const updateSetting = useSettingsStore(s => s.updateSetting)
 
   const [selectedWord, setSelectedWord] = useState(null)
   const [showVocab, setShowVocab] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
 
-  // Pacemaker state
-  const [isPacemakerOn, setIsPacemakerOn] = useState(false)
-  const [activeSentenceIdx, setActiveSentenceIdx] = useState(-1)
-  const [readWordsCount, setReadWordsCount] = useState(0)
+  // Hints are always active (no toggle)
+  const hintsActive = true
 
-  // Hint & Focus state
-  const [showHints, setShowHints] = useState(false)
-  const [isLineFocusOn, setIsLineFocusOn] = useState(false)
-
-  // Focus Timer state (countup - elapsed time)
-  const [elapsedTime, setElapsedTime] = useState(0)
-  const [isTimerRunning, setIsTimerRunning] = useState(false)
-  const [focusStars, setFocusStars] = useState(0)
   const [showBookmarkToast, setShowBookmarkToast] = useState(false)
 
   // Session summary state
@@ -59,8 +45,6 @@ export default function ReaderView() {
   const [quizLoading, setQuizLoading] = useState(false)
   const [revealedAnswers, setRevealedAnswers] = useState(new Set())
 
-  const pacemakerTimerRef = useRef(null)
-  const focusTimerRef = useRef(null)
   const contentRef = useRef(null)
   const scrollTimeoutRef = useRef(null)
 
@@ -112,99 +96,14 @@ export default function ReaderView() {
     }
   }, [])
 
-  // Pacemaker Logic
+
+
+  // Auto-generate hints when book loads
   useEffect(() => {
-    if (!isPacemakerOn || activeSentenceIdx === -1) {
-      if (pacemakerTimerRef.current) clearInterval(pacemakerTimerRef.current)
-      return
+    if (currentBook && ['idle', 'error'].includes(currentBook.hintStatus ?? 'idle') && Object.keys(currentBook.hints ?? {}).length === 0) {
+      generateHints(currentBook.title)
     }
-
-    // Find the current sentence to calculate words
-    let count = 0
-    let currentSentenceText = ''
-    for (const p of paragraphs) {
-      for (const s of p) {
-        if (count === activeSentenceIdx) {
-          currentSentenceText = s.raw
-          break
-        }
-        count++
-      }
-      if (currentSentenceText) break
-    }
-
-    const wordCount = currentSentenceText.split(/\s+/).length
-    const durationMs = (wordCount / targetWpm) * 60 * 1000
-
-    pacemakerTimerRef.current = setTimeout(() => {
-      const totalSentences = paragraphs.flat().length
-      if (activeSentenceIdx < totalSentences - 1) {
-        setActiveSentenceIdx(prev => prev + 1)
-        setReadWordsCount(prev => prev + wordCount)
-
-        // Auto-scroll to keep active sentence in view
-        const activeEl = document.querySelector(`[data-sentence-id="${activeSentenceIdx + 1}"]`)
-        if (activeEl && contentRef.current) {
-          activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        }
-      } else {
-        setIsPacemakerOn(false)
-      }
-    }, durationMs)
-
-    return () => clearTimeout(pacemakerTimerRef.current)
-  }, [isPacemakerOn, activeSentenceIdx, targetWpm, paragraphs])
-
-  // Sync activity words to DB periodically
-  useEffect(() => {
-    if (readWordsCount >= 50) {
-      addReadActivity(readWordsCount, 1) // Assume roughly 1 min per 50-100 words
-      setReadWordsCount(0)
-    }
-  }, [readWordsCount, addReadActivity])
-
-  // Focus Timer Logic (countup)
-  useEffect(() => {
-    if (isTimerRunning) {
-      focusTimerRef.current = setInterval(() => {
-        setElapsedTime(prev => {
-          const next = prev + 1
-          if (next > 0 && next % 60 === 0) {
-            setFocusStars(s => s + 1)
-          }
-          return next
-        })
-      }, 1000)
-    } else {
-      clearInterval(focusTimerRef.current)
-    }
-    return () => clearInterval(focusTimerRef.current)
-  }, [isTimerRunning])
-
-  // Visibility API to pause timer
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setIsTimerRunning(false)
-      } else if (currentBook) {
-        setIsTimerRunning(true)
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [currentBook])
-
-  // Start timer on mount/book load
-  useEffect(() => {
-    if (currentBook) setIsTimerRunning(true)
-    return () => setIsTimerRunning(false)
-  }, [currentBook])
-
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
+  }, [currentBook?.title]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleManualBookmark = () => {
     if (contentRef.current) {
@@ -281,33 +180,7 @@ export default function ReaderView() {
           </button>
         </div>
 
-        <div style={styles.focusStats}>
-          <span style={styles.timerText}>{formatTime(elapsedTime)}</span>
-          <span style={styles.starsText}>{focusStars > 0 ? '✨'.repeat(focusStars) : '⏱️'}</span>
-        </div>
-
         <div style={styles.topBarRight}>
-          <button
-            onClick={() => {
-              if (isLineFocusOn) {
-                setIsLineFocusOn(false)
-                setIsPacemakerOn(false)
-              } else {
-                setIsLineFocusOn(true)
-                setIsPacemakerOn(true)
-                if (activeSentenceIdx === -1) setActiveSentenceIdx(0)
-              }
-            }}
-            style={{
-              ...styles.pacemakerBtn,
-              background: isLineFocusOn ? 'rgba(139, 105, 20, 0.25)' : 'transparent',
-              borderColor: isLineFocusOn ? '#8b6914' : '#e0d5be',
-              transform: isLineFocusOn ? 'scale(1.05)' : 'scale(1)'
-            }}
-          >
-            {isLineFocusOn ? '⏹' : '▶'} <span className="desktop-only">{isLineFocusOn ? 'Stop' : 'Focus'}</span>
-          </button>
-
           <button
             onClick={handleManualBookmark}
             style={styles.bookmarkBtn}
@@ -357,32 +230,6 @@ export default function ReaderView() {
           </button>
 
           <button
-            onClick={() => {
-              const next = !showHints
-              setShowHints(next)
-              // Trigger generation if turning on and no hints yet (or previous error)
-              if (next && currentBook && ['idle', 'error'].includes(currentBook.hintStatus ?? 'idle') && Object.keys(currentBook.hints ?? {}).length === 0) {
-                generateHints(currentBook.title)
-              }
-            }}
-            style={{
-              ...styles.hintBtn,
-              background: showHints ? 'rgba(139, 105, 20, 0.15)' : 'transparent',
-              display: window.innerWidth < 600 && !showHints ? 'none' : 'flex',
-              opacity: currentBook?.hintStatus === 'loading' ? 0.7 : 1,
-            }}
-            title={currentBook?.hintStatus === 'error' ? 'Hint analysis failed — click to retry' : undefined}
-          >
-            {currentBook?.hintStatus === 'loading' ? '⏳' : '🪄'}
-            {' '}
-            <span className="desktop-only">
-              {currentBook?.hintStatus === 'loading' ? 'Analyzing…'
-                : currentBook?.hintStatus === 'error' ? 'Retry Hints'
-                : showHints ? 'Hints On' : 'Hints'}
-            </span>
-          </button>
-
-          <button
             onClick={() => setShowSettings(true)}
             style={styles.settingsButton}
           >
@@ -407,27 +254,19 @@ export default function ReaderView() {
             fontSize,
             lineHeight,
             fontFamily: `${fontFamily}, Georgia, serif`,
-            opacity: isLineFocusOn ? 1 : 1, // container overall
           }}
-          className={isLineFocusOn ? 'line-focus-mode' : ''}
           onClick={handleContentClick}
         >
           {paragraphs.map((sentences, pIdx) => (
             <p key={pIdx} style={styles.paragraph}>
               {sentences.map((sentence, sIdx) => {
                 const sentenceIdx = globalSentenceIdx++
-                const isActive = activeSentenceIdx === sentenceIdx
                 return (
                   <span
                     key={sIdx}
-                    className={`sentence${isActive ? ' sentence-active' : ''}`}
+                    className="sentence"
                     data-sentence-id={sentenceIdx}
-                    style={{
-                      ...(isActive ? styles.activeSentence : {}),
-                      opacity: isLineFocusOn && !isActive ? 0.3 : 1,
-                      transition: 'opacity 0.4s ease',
-                      display: 'inline', // Ensure sentences wrap correctly
-                    }}
+                    style={{ display: 'inline' }}
                   >
                     {sentence.tokens.map((token, tIdx) => {
                       const nextToken = sentence.tokens[tIdx + 1]
@@ -448,7 +287,7 @@ export default function ReaderView() {
                               data-word={wordLower}
                               data-sentence-idx={sentenceIdx}
                             >
-                              {showHints && hint && !wordIsKnown ? (
+                              {hintsActive && hint && !wordIsKnown ? (
                                 <ruby style={styles.hintRuby}>
                                   {token}
                                   <rt style={styles.hintText}>
@@ -595,11 +434,11 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '10px 20px',
+    padding: '8px 12px',
     borderBottom: '1px solid var(--border, #e0d5be)',
     background: 'var(--bg, #f4ecd8)',
     flexShrink: 0,
-    minHeight: 60,
+    minHeight: 44,
     position: 'sticky',
     top: 0,
     zIndex: 1000,
@@ -627,29 +466,6 @@ const styles = {
   backArrow: {
     fontSize: 18,
     lineHeight: 1,
-  },
-  focusStats: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    background: 'rgba(139, 105, 20, 0.08)',
-    padding: '6px 14px',
-    borderRadius: 24,
-    border: '1px solid rgba(139, 105, 20, 0.15)',
-    position: 'absolute',
-    left: '50%',
-    transform: 'translateX(-50%)',
-  },
-  timerText: {
-    fontSize: 15,
-    fontWeight: 700,
-    fontFamily: 'monospace',
-    color: '#8b6914',
-    letterSpacing: '0.05em',
-  },
-  starsText: {
-    fontSize: 16,
-    letterSpacing: 1,
   },
   topBarRight: {
     display: 'flex',
@@ -692,40 +508,6 @@ const styles = {
   paragraph: {
     marginBottom: '2em',
     textIndent: 0,
-  },
-  pacemakerBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 4,
-    padding: '8px 14px',
-    fontSize: 14,
-    fontWeight: 700,
-    fontFamily: 'Georgia, serif',
-    color: '#8b6914',
-    border: '1px solid #e0d5be',
-    borderRadius: 8,
-    cursor: 'pointer',
-    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-  },
-  activeSentence: {
-    background: 'rgba(255, 255, 224, 0.95)',
-    boxShadow: '0 4px 12px rgba(139, 105, 20, 0.1), -4px 0 0 #8b6914',
-    borderRadius: '0 4px 4px 0',
-    padding: '2px 4px 2px 8px',
-    position: 'relative',
-    zIndex: 10,
-  },
-  hintBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 4,
-    padding: '8px 12px',
-    fontSize: 14,
-    color: '#8b6914',
-    border: '1px solid #e0d5be',
-    borderRadius: 8,
-    cursor: 'pointer',
-    transition: 'all 0.2s',
   },
   hintRuby: {
     rubyPosition: 'over',
