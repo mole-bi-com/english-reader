@@ -4,9 +4,18 @@ export default async function handler(req, res) {
     const sql = neon(process.env.DATABASE_URL);
 
     try {
+        // Ensure hints column exists for existing deployments
+        await sql`ALTER TABLE books ADD COLUMN IF NOT EXISTS hints JSONB DEFAULT '{}'`.catch(() => {})
+
         if (req.method === 'GET') {
             const books = await sql`SELECT * FROM books ORDER BY created_at DESC`;
             return res.status(200).json(books);
+        }
+
+        if (req.method === 'DELETE') {
+            const { title } = req.body;
+            await sql`DELETE FROM books WHERE title = ${title}`;
+            return res.status(200).json({ success: true });
         }
 
         if (req.method === 'POST') {

@@ -9,6 +9,7 @@ import WordPopup from './WordPopup'
 import VocabSidebar from './VocabSidebar'
 import SettingsPanel from './SettingsPanel'
 
+
 export default function ReaderView() {
   const currentBook = useReadingStore(s => s.currentBook)
   const goHome = useReadingStore(s => s.goHome)
@@ -22,6 +23,9 @@ export default function ReaderView() {
   const vocab = useVocabStore(s => s.vocab)
   const markKnown = useKnownWordsStore(s => s.markKnown)
   const isKnown = useKnownWordsStore(s => s.isKnown)
+  const recordLookup = useReadingStore(s => s.recordLookup)
+  const sessionLookups = useReadingStore(s => s.sessionLookups)
+  const getSessionMinutes = useReadingStore(s => s.getSessionMinutes)
 
   const addReadActivity = useStatsStore(s => s.addReadActivity)
   const targetWpm = useSettingsStore(s => s.targetWpm)
@@ -40,11 +44,20 @@ export default function ReaderView() {
   const [showHints, setShowHints] = useState(false)
   const [isLineFocusOn, setIsLineFocusOn] = useState(false)
 
-  // Focus Timer state
-  const [focusTimeLeft, setFocusTimeLeft] = useState(600) // 10 minutes
+  // Focus Timer state (countup - elapsed time)
+  const [elapsedTime, setElapsedTime] = useState(0)
   const [isTimerRunning, setIsTimerRunning] = useState(false)
   const [focusStars, setFocusStars] = useState(0)
   const [showBookmarkToast, setShowBookmarkToast] = useState(false)
+
+  // Session summary state
+  const [showSummary, setShowSummary] = useState(false)
+
+  // Quiz state
+  const [showQuiz, setShowQuiz] = useState(false)
+  const [quizQuestions, setQuizQuestions] = useState([])
+  const [quizLoading, setQuizLoading] = useState(false)
+  const [revealedAnswers, setRevealedAnswers] = useState(new Set())
 
   const pacemakerTimerRef = useRef(null)
   const focusTimerRef = useRef(null)
@@ -150,13 +163,13 @@ export default function ReaderView() {
     }
   }, [readWordsCount, addReadActivity])
 
-  // Focus Timer Logic
+  // Focus Timer Logic (countup)
   useEffect(() => {
-    if (isTimerRunning && focusTimeLeft > 0) {
+    if (isTimerRunning) {
       focusTimerRef.current = setInterval(() => {
-        setFocusTimeLeft(prev => {
-          const next = prev - 1
-          if (next > 0 && (600 - next) % 60 === 0) {
+        setElapsedTime(prev => {
+          const next = prev + 1
+          if (next > 0 && next % 60 === 0) {
             setFocusStars(s => s + 1)
           }
           return next
@@ -166,7 +179,7 @@ export default function ReaderView() {
       clearInterval(focusTimerRef.current)
     }
     return () => clearInterval(focusTimerRef.current)
-  }, [isTimerRunning, focusTimeLeft])
+  }, [isTimerRunning])
 
   // Visibility API to pause timer
   useEffect(() => {
@@ -246,8 +259,9 @@ export default function ReaderView() {
 
     const selection = { word, rect, sentence: sentenceText, sentenceIdx }
     setSelectedWord(selection)
+    recordLookup(word)
     console.log('Word clicked:', word, '| Sentence:', sentenceText)
-  }, [paragraphs])
+  }, [paragraphs, recordLookup])
 
   if (!currentBook) return null
 
@@ -260,7 +274,7 @@ export default function ReaderView() {
       <header style={styles.topBar}>
         <div style={styles.topBarLeft}>
           <button
-            onClick={goHome}
+            onClick={() => setShowSummary(true)}
             style={styles.backButton}
           >
             <span style={styles.backArrow}>&larr;</span> <span className="desktop-only">Home</span>
@@ -268,7 +282,7 @@ export default function ReaderView() {
         </div>
 
         <div style={styles.focusStats}>
-          <span style={styles.timerText}>{formatTime(focusTimeLeft)}</span>
+          <span style={styles.timerText}>{formatTime(elapsedTime)}</span>
           <span style={styles.starsText}>{focusStars > 0 ? '✨'.repeat(focusStars) : '⏱️'}</span>
         </div>
 
@@ -300,6 +314,43 @@ export default function ReaderView() {
             title="Save Position"
           >
             🔖
+          </button>
+
+          <button
+            onClick={async () => {
+              setShowQuiz(true)
+              setQuizLoading(true)
+              setQuizQuestions([])
+              setRevealedAnswers(new Set())
+              try {
+                const res = await fetch('/api/comprehension', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ text: currentBook.text }),
+                })
+                const data = await res.json()
+                if (Array.isArray(data)) {
+                  setQuizQuestions(data)
+                } else {
+                  setQuizQuestions([{ question: data.error || 'Failed to generate questions.', answer: '' }])
+                }
+              } catch (err) {
+                setQuizQuestions([{ question: 'Error: ' + err.message, answer: '' }])
+              } finally {
+                setQuizLoading(false)
+              }
+            }}
+            style={{
+              ...styles.bookmarkBtn,
+              fontSize: 14,
+              padding: '6px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+            title="Comprehension Check"
+          >
+            💡 <span className="desktop-only">Quiz</span>
           </button>
 
           <button
@@ -447,6 +498,81 @@ export default function ReaderView() {
 
       {/* Settings panel */}
       <SettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} />
+
+      {/* Session Summary Modal */}
+      {showSummary && (
+        <div style={styles.overlay}>
+          <div style={styles.modal}>
+            <h2 style={styles.modalTitle}>Session Summary</h2>
+            <div style={styles.summaryItem}>
+              <span style={styles.summaryLabel}>Reading time</span>
+              <span style={styles.summaryValue}>{getSessionMinutes()} min</span>
+            </div>
+            <div style={styles.summaryItem}>
+              <span style={styles.summaryLabel}>Words explored</span>
+              <span style={styles.summaryValue}>{sessionLookups.length}</span>
+            </div>
+            {sessionLookups.length > 0 && (
+              <div style={styles.summaryWords}>
+                {sessionLookups.slice(0, 15).join(', ')}
+                {sessionLookups.length > 15 && '…'}
+              </div>
+            )}
+            <div style={styles.modalBtnRow}>
+              <button
+                onClick={() => setShowSummary(false)}
+                style={styles.modalSecondaryBtn}
+              >
+                Continue Reading
+              </button>
+              <button
+                onClick={() => { setShowSummary(false); goHome() }}
+                style={styles.modalPrimaryBtn}
+              >
+                Go Home
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quiz Modal */}
+      {showQuiz && (
+        <div style={styles.overlay}>
+          <div style={{ ...styles.modal, maxWidth: 560 }}>
+            <h2 style={styles.modalTitle}>Comprehension Check</h2>
+            {quizLoading ? (
+              <div style={styles.quizLoading}>Generating questions…</div>
+            ) : (
+              <div>
+                {quizQuestions.map((q, idx) => (
+                  <div key={idx} style={styles.quizItem}>
+                    <p style={styles.quizQuestion}>{idx + 1}. {q.question}</p>
+                    {!revealedAnswers.has(idx) ? (
+                      <button
+                        onClick={() => setRevealedAnswers(prev => new Set([...prev, idx]))}
+                        style={styles.revealBtn}
+                      >
+                        Reveal Answer
+                      </button>
+                    ) : (
+                      <p style={styles.quizAnswer}>{q.answer}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ ...styles.modalBtnRow, marginTop: 24 }}>
+              <button
+                onClick={() => { setShowQuiz(false); setRevealedAnswers(new Set()) }}
+                style={styles.modalPrimaryBtn}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -635,6 +761,134 @@ const styles = {
     zIndex: 2000,
     boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
     pointerEvents: 'none',
+  },
+  overlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(61, 50, 41, 0.55)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 3000,
+    padding: 16,
+  },
+  modal: {
+    background: '#faf6ee',
+    border: '1px solid #d4c9b0',
+    borderRadius: 10,
+    padding: '32px 36px',
+    maxWidth: 420,
+    width: '100%',
+    boxShadow: '0 16px 48px rgba(61, 50, 41, 0.18)',
+    fontFamily: 'Georgia, serif',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 400,
+    color: '#3d3229',
+    marginBottom: 24,
+    marginTop: 0,
+    fontFamily: 'Georgia, serif',
+    letterSpacing: '0.01em',
+  },
+  summaryItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '10px 0',
+    borderBottom: '1px solid #e8dfc9',
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: '#8b7b6b',
+    fontFamily: 'Georgia, serif',
+  },
+  summaryValue: {
+    fontSize: 20,
+    fontWeight: 400,
+    color: '#8b6914',
+    fontFamily: 'Georgia, serif',
+  },
+  summaryWords: {
+    marginTop: 16,
+    fontSize: 13,
+    color: '#8b7b6b',
+    fontFamily: 'Georgia, serif',
+    fontStyle: 'italic',
+    lineHeight: 1.7,
+  },
+  modalBtnRow: {
+    display: 'flex',
+    gap: 12,
+    marginTop: 28,
+    justifyContent: 'flex-end',
+  },
+  modalPrimaryBtn: {
+    padding: '10px 24px',
+    fontSize: 14,
+    fontFamily: 'Georgia, serif',
+    background: '#8b6914',
+    color: '#faf6ee',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
+    letterSpacing: '0.02em',
+  },
+  modalSecondaryBtn: {
+    padding: '10px 24px',
+    fontSize: 14,
+    fontFamily: 'Georgia, serif',
+    background: 'transparent',
+    color: '#8b7b6b',
+    border: '1px solid #d4c9b0',
+    borderRadius: 6,
+    cursor: 'pointer',
+    letterSpacing: '0.02em',
+  },
+  quizLoading: {
+    textAlign: 'center',
+    padding: '32px 0',
+    color: '#8b7b6b',
+    fontFamily: 'Georgia, serif',
+    fontStyle: 'italic',
+    fontSize: 15,
+  },
+  quizItem: {
+    marginBottom: 24,
+    paddingBottom: 20,
+    borderBottom: '1px solid #e8dfc9',
+  },
+  quizQuestion: {
+    fontSize: 15,
+    color: '#3d3229',
+    fontFamily: 'Georgia, serif',
+    lineHeight: 1.7,
+    marginBottom: 12,
+    marginTop: 0,
+  },
+  quizAnswer: {
+    fontSize: 14,
+    color: '#5a4a3a',
+    fontFamily: 'Georgia, serif',
+    fontStyle: 'italic',
+    lineHeight: 1.7,
+    marginTop: 8,
+    marginBottom: 0,
+    padding: '10px 14px',
+    background: 'rgba(139, 105, 20, 0.07)',
+    borderRadius: 6,
+    borderLeft: '3px solid #b58d2a',
+  },
+  revealBtn: {
+    padding: '7px 16px',
+    fontSize: 13,
+    fontFamily: 'Georgia, serif',
+    background: 'transparent',
+    color: '#8b6914',
+    border: '1px solid #c8b070',
+    borderRadius: 6,
+    cursor: 'pointer',
+    letterSpacing: '0.02em',
   },
 }
 

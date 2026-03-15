@@ -2,6 +2,7 @@ import { useReadingStore } from '../stores/reading-store'
 import { useSettingsStore } from '../stores/settings-store'
 import { useStatsStore } from '../stores/stats-store'
 import { useVocabStore } from '../stores/vocab-store'
+import { useKnownWordsStore } from '../stores/known-words-store'
 import SettingsPanel from './SettingsPanel'
 import { useEffect, useState } from 'react'
 
@@ -46,10 +47,6 @@ const styles = {
     cursor: 'pointer',
     transition: 'background 0.2s',
     lineHeight: 1,
-  },
-  header: {
-    textAlign: 'center',
-    marginBottom: 52,
   },
   icon: {
     fontSize: 36,
@@ -260,6 +257,21 @@ const styles = {
     borderRadius: 4,
     transition: 'width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)',
   },
+  completeButton: {
+    width: 28,
+    height: 28,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'transparent',
+    border: '1px solid var(--border, #d4c9b0)',
+    borderRadius: '50%',
+    fontSize: 13,
+    color: 'var(--text-secondary, #8b7b6b)',
+    cursor: 'pointer',
+    transition: 'background 0.2s',
+    flexShrink: 0,
+  },
   vocabStats: {
     display: 'flex',
     alignItems: 'center',
@@ -305,14 +317,128 @@ const styles = {
   },
 }
 
+// Density badge styles
+const densityStyles = {
+  badge: (ratio) => {
+    if (ratio < 5) return {
+      marginTop: 8,
+      fontSize: 13,
+      fontFamily: 'Georgia, serif',
+      fontStyle: 'italic',
+      color: '#5a7a4a',
+      display: 'block',
+    }
+    if (ratio >= 30) return {
+      marginTop: 8,
+      fontSize: 13,
+      fontFamily: 'Georgia, serif',
+      fontStyle: 'italic',
+      color: '#8b4a4a',
+      display: 'block',
+    }
+    if (ratio >= 15) return {
+      marginTop: 8,
+      fontSize: 13,
+      fontFamily: 'Georgia, serif',
+      fontStyle: 'italic',
+      color: '#8b6914',
+      display: 'block',
+    }
+    return { display: 'none' }
+  }
+}
+
+// SRS card styles
+const srsStyles = {
+  card: {
+    background: 'var(--card-bg, #faf6ee)',
+    border: '1px solid var(--border, #e8dfc9)',
+    borderRadius: 8,
+    padding: '28px 24px',
+    textAlign: 'center',
+  },
+  wordDisplay: {
+    fontSize: 32,
+    fontFamily: 'Georgia, serif',
+    color: '#3d3229',
+    fontWeight: 400,
+    marginBottom: 8,
+    letterSpacing: '0.03em',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#8b7b6b',
+    fontFamily: 'Georgia, serif',
+    fontStyle: 'italic',
+    marginBottom: 20,
+  },
+  btnRow: {
+    display: 'flex',
+    gap: 12,
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  rememberBtn: {
+    padding: '10px 24px',
+    fontSize: 14,
+    fontFamily: 'Georgia, serif',
+    background: 'rgba(90, 122, 74, 0.12)',
+    color: '#5a7a4a',
+    border: '1px solid rgba(90, 122, 74, 0.3)',
+    borderRadius: 6,
+    cursor: 'pointer',
+    letterSpacing: '0.02em',
+  },
+  forgotBtn: {
+    padding: '10px 24px',
+    fontSize: 14,
+    fontFamily: 'Georgia, serif',
+    background: 'rgba(139, 74, 74, 0.08)',
+    color: '#8b4a4a',
+    border: '1px solid rgba(139, 74, 74, 0.2)',
+    borderRadius: 6,
+    cursor: 'pointer',
+    letterSpacing: '0.02em',
+  },
+  progress: {
+    fontSize: 12,
+    color: '#a89880',
+    fontFamily: 'Georgia, serif',
+  },
+  meaningReveal: {
+    padding: '8px 0',
+  },
+  meaningText: {
+    fontSize: 18,
+    color: '#8b6914',
+    fontFamily: 'Georgia, serif',
+    fontStyle: 'italic',
+    marginTop: 10,
+  },
+  doneText: {
+    fontSize: 16,
+    color: '#5a7a4a',
+    fontFamily: 'Georgia, serif',
+    padding: '8px 0',
+  },
+}
+
 export default function HomeView() {
   const [title, setTitle] = useState('')
   const [text, setText] = useState('')
   const [showSettings, setShowSettings] = useState(false)
 
+  // SRS review state
+  const [dueWords, setDueWords] = useState([])
+  const [reviewIdx, setReviewIdx] = useState(0)
+  const [showMeaning, setShowMeaning] = useState(false)
+  const [reviewDone, setReviewDone] = useState(false)
+  const [reviewCount, setReviewCount] = useState(0)
+
   const books = useReadingStore(s => s.books)
   const startReading = useReadingStore(s => s.startReading)
   const loadBooks = useReadingStore(s => s.loadBooks)
+  const deleteBook = useReadingStore(s => s.deleteBook)
 
   const dailyStreak = useSettingsStore(s => s.dailyStreak)
   const loadSettings = useSettingsStore(s => s.loadSettings)
@@ -322,6 +448,10 @@ export default function HomeView() {
 
   const vocab = useVocabStore(s => s.vocab)
   const loadVocab = useVocabStore(s => s.loadVocab)
+  const getDueWords = useVocabStore(s => s.getDueWords)
+  const reviewWord = useVocabStore(s => s.reviewWord)
+
+  const knownWords = useKnownWordsStore(s => s.knownWords)
 
   useEffect(() => {
     loadBooks()
@@ -329,6 +459,13 @@ export default function HomeView() {
     fetchStats()
     loadVocab()
   }, [loadBooks, loadSettings, fetchStats, loadVocab])
+
+  // Load due words after vocab is loaded
+  useEffect(() => {
+    if (vocab.length > 0) {
+      setDueWords(getDueWords())
+    }
+  }, [vocab, getDueWords])
 
   const todayStats = dailyStats.find(s => s.read_date.startsWith(new Date().toISOString().split('T')[0]))
   const wordsToday = todayStats ? todayStats.words_read : 0
@@ -364,15 +501,56 @@ export default function HomeView() {
     if (words.length === 0) return 100
 
     const uniqueWords = [...new Set(words)]
-    const knownWords = uniqueWords.filter(w => vocab.some(v => v.word.toLowerCase() === w))
+    const knownVocabWords = uniqueWords.filter(w => vocab.some(v => v.word.toLowerCase() === w))
 
-    return Math.round((knownWords.length / uniqueWords.length) * 100)
+    return Math.round((knownVocabWords.length / uniqueWords.length) * 100)
   }
 
   const formatDate = (iso) => {
     const d = new Date(iso)
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
+
+  // Vocab density calculation
+  const getVocabDensity = () => {
+    if (text.trim().length <= 100) return null
+    const words = text.toLowerCase().match(/\b[a-z]{3,}\b/g) || []
+    if (words.length === 0) return null
+    const uniqueWords = [...new Set(words)]
+    const vocabWordSet = new Set(vocab.map(v => v.word.toLowerCase()))
+    const unknownUnique = uniqueWords.filter(w => !knownWords.has(w) && !vocabWordSet.has(w))
+    return Math.round((unknownUnique.length / uniqueWords.length) * 100)
+  }
+
+  const vocabDensity = getVocabDensity()
+
+  // SRS review handlers
+  const handleReview = (remembered) => {
+    const word = dueWords[reviewIdx]
+    reviewWord(word, remembered)
+    const meaning = vocab.find(v => v.word.toLowerCase() === word)
+    setShowMeaning(true)
+    // Refresh due words after review
+    setTimeout(() => {
+      setShowMeaning(false)
+      const nextIdx = reviewIdx + 1
+      if (nextIdx >= dueWords.length) {
+        setReviewDone(true)
+        setReviewCount(dueWords.length)
+        setTimeout(() => {
+          setReviewDone(false)
+          setDueWords(getDueWords())
+          setReviewIdx(0)
+        }, 3000)
+      } else {
+        setReviewIdx(nextIdx)
+      }
+    }, 1500)
+    return meaning
+  }
+
+  const currentDueWord = dueWords[reviewIdx]
+  const currentWordEntry = vocab.find(v => v.word.toLowerCase() === currentDueWord)
 
   return (
     <div style={styles.container}>
@@ -404,6 +582,59 @@ export default function HomeView() {
         </div>
       </header>
 
+      {/* SRS Review Section */}
+      {dueWords.length > 0 && !reviewDone && (
+        <>
+          <section style={styles.section}>
+            <h2 style={styles.sectionTitle}>Today's Review</h2>
+            <div style={srsStyles.card}>
+              {showMeaning && currentWordEntry ? (
+                <div style={srsStyles.meaningReveal}>
+                  <div style={srsStyles.wordDisplay}>{currentDueWord}</div>
+                  <div style={srsStyles.meaningText}>
+                    {currentWordEntry.ko || currentWordEntry.en_definition || '—'}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div style={srsStyles.wordDisplay}>{currentDueWord}</div>
+                  <div style={srsStyles.subtitle}>Do you remember?</div>
+                  <div style={srsStyles.btnRow}>
+                    <button
+                      onClick={() => handleReview(true)}
+                      style={srsStyles.rememberBtn}
+                    >
+                      Remember ✓
+                    </button>
+                    <button
+                      onClick={() => handleReview(false)}
+                      style={srsStyles.forgotBtn}
+                    >
+                      Forgot ✗
+                    </button>
+                  </div>
+                  <div style={srsStyles.progress}>
+                    {reviewIdx + 1} / {dueWords.length}
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+          <hr style={styles.divider} />
+        </>
+      )}
+
+      {reviewDone && (
+        <>
+          <section style={styles.section}>
+            <div style={srsStyles.card}>
+              <div style={srsStyles.doneText}>Review complete! {reviewCount} words reviewed.</div>
+            </div>
+          </section>
+          <hr style={styles.divider} />
+        </>
+      )}
+
       <section style={styles.section}>
         <h2 style={styles.sectionTitle}>New Reading</h2>
         <input
@@ -423,6 +654,17 @@ export default function HomeView() {
           onFocus={e => { e.target.style.borderColor = '#8b6914' }}
           onBlur={e => { e.target.style.borderColor = '#d4c9b0' }}
         />
+        {vocabDensity !== null && (
+          <div style={densityStyles.badge(vocabDensity)}>
+            {vocabDensity < 5
+              ? 'Easy read for your level'
+              : vocabDensity >= 30
+              ? `Very difficult — ~${vocabDensity}% unknown words`
+              : vocabDensity >= 15
+              ? `Challenging — ~${vocabDensity}% unknown words`
+              : null}
+          </div>
+        )}
         <div style={styles.buttonRow}>
           <button
             onClick={handleStart}
@@ -485,6 +727,15 @@ export default function HomeView() {
                           style={{ ...styles.progressFill, width: `${progress}%` }}
                         />
                       </div>
+                      <button
+                        onClick={e => { e.stopPropagation(); deleteBook(book.title) }}
+                        style={styles.completeButton}
+                        onMouseEnter={e => { e.target.style.background = 'rgba(139, 105, 20, 0.12)' }}
+                        onMouseLeave={e => { e.target.style.background = 'transparent' }}
+                        title="Mark as complete"
+                      >
+                        ✓
+                      </button>
                     </div>
                   </li>
                 )

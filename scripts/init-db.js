@@ -41,6 +41,7 @@ async function init() {
         title TEXT UNIQUE NOT NULL,
         text TEXT NOT NULL,
         last_position INTEGER DEFAULT 0,
+        hints JSONB DEFAULT '{}',
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );

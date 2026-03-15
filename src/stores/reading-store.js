@@ -8,19 +8,67 @@ export const useReadingStore = create((set, get) => ({
   books: [],
   currentBook: null,
 
+  // Session tracking
+  sessionLookups: [],
+  sessionStart: null,
+
+  startSession: () => {
+    set({ sessionLookups: [], sessionStart: new Date().toISOString() })
+  },
+
+  recordLookup: (word) => {
+    const { sessionLookups } = get()
+    if (!sessionLookups.includes(word)) {
+      set({ sessionLookups: [...sessionLookups, word] })
+    }
+  },
+
+  getSessionMinutes: () => {
+    const { sessionStart } = get()
+    if (!sessionStart) return 0
+    return Math.round((new Date() - new Date(sessionStart)) / 60000)
+  },
+
   loadBooks: async () => {
+    const toBook = (b, localHintsMap = {}) => {
+      const hints = (b.hints && Object.keys(b.hints).length > 0) ? b.hints : (localHintsMap[b.title] || {})
+      return { ...b, hints, hintStatus: Object.keys(hints).length > 0 ? 'ready' : 'idle' }
+    }
     try {
       const res = await fetch('/api/books')
       if (res.ok) {
-        const books = await res.json()
-        set({ books: books.map(b => ({ ...b, hints: b.hints || {}, hintStatus: Object.keys(b.hints || {}).length > 0 ? 'ready' : 'idle' })) })
+        const dbBooks = await res.json()
+        // Merge hints from localStorage as fallback (for existing books before DB migration)
+        const localData = localStorage.getItem('books')
+        const localHintsMap = localData
+          ? Object.fromEntries(JSON.parse(localData).map(b => [b.title, b.hints || {}]))
+          : {}
+        const books = dbBooks.map(b => toBook(b, localHintsMap))
+        set({ books })
+        localStorage.setItem('books', JSON.stringify(books))
       } else {
         const data = localStorage.getItem('books')
-        if (data) set({ books: JSON.parse(data).map(b => ({ ...b, hints: b.hints || {}, hintStatus: Object.keys(b.hints || {}).length > 0 ? 'ready' : 'idle' })) })
+        if (data) set({ books: JSON.parse(data).map(b => toBook(b)) })
       }
     } catch (err) {
       const data = localStorage.getItem('books')
-      if (data) set({ books: JSON.parse(data).map(b => ({ ...b, hints: b.hints || {}, hintStatus: Object.keys(b.hints || {}).length > 0 ? 'ready' : 'idle' })) })
+      if (data) set({ books: JSON.parse(data).map(b => toBook(b)) })
+    }
+  },
+
+  deleteBook: async (title) => {
+    const { books, currentBook } = get()
+    const updated = books.filter(b => b.title !== title)
+    set({ books: updated, currentBook: currentBook?.title === title ? null : currentBook })
+    localStorage.setItem('books', JSON.stringify(updated))
+    try {
+      await fetch('/api/books', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      })
+    } catch (err) {
+      console.error('Failed to delete book from API', err)
     }
   },
 
@@ -111,6 +159,7 @@ export const useReadingStore = create((set, get) => ({
   },
 
   startReading: async (title, text) => {
+    get().startSession()
     const books = get().books
     const existing = books.find(b => b.title === title)
     const book = existing || {
