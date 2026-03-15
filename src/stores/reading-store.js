@@ -53,7 +53,7 @@ export const useReadingStore = create((set, get) => ({
     const book = books.find(b => b.title === title) ?? currentBook
     if (!book) return
 
-    const { apiKey, hintWordCount } = useSettingsStore.getState()
+    const { apiKey } = useSettingsStore.getState()
     const knownWords = useKnownWordsStore.getState().getKnownList()
     const hardWords = useVocabStore.getState().vocab.slice(0, 100).map(v => v.word)
 
@@ -63,7 +63,7 @@ export const useReadingStore = create((set, get) => ({
       const res = await fetch('/api/analyze-text', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: book.text, bookTitle: book.title, hintWordCount, knownWords, hardWords }),
+        body: JSON.stringify({ text: book.text, bookTitle: book.title, knownWords, hardWords }),
       })
 
       if (!res.ok || res.headers.get('content-type')?.includes('text/html')) {
@@ -83,7 +83,7 @@ export const useReadingStore = create((set, get) => ({
         return
       }
       try {
-        const hints = await generateHintsWithGemini(book.text, apiKey, hintWordCount, knownWords, hardWords)
+        const hints = await generateHintsWithGemini(book.text, apiKey, knownWords, hardWords)
         _applyHints(title, hints)
       } catch (err) {
         console.error('Hint generation failed:', err)

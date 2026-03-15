@@ -1,13 +1,12 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { text, bookTitle, hintWordCount = 20, knownWords = [], hardWords = [] } = req.body
-  const count = Math.min(60, Math.max(5, hintWordCount))
+  const { text, bookTitle, knownWords = [], hardWords = [] } = req.body
   const excludeLine = Array.isArray(knownWords) && knownWords.length > 0
     ? `\nDo NOT include these words the user already knows: ${knownWords.slice(0, 150).join(', ')}.`
     : ''
   const profileLine = Array.isArray(hardWords) && hardWords.length > 0
-    ? `\nThe user has previously looked up these words (they found them difficult): ${hardWords.slice(0, 50).join(', ')}. Use this to calibrate the difficulty level of hints you select.`
+    ? `\nThe user has previously looked up these words (they found them difficult): ${hardWords.slice(0, 50).join(', ')}. Use this vocabulary profile to calibrate which words to include — select words at a similar or slightly easier difficulty level.`
     : ''
 
   try {
@@ -27,7 +26,7 @@ export default async function handler(req, res) {
 
     if (!apiKey) return res.status(400).json({ error: 'Gemini API Key not configured' })
 
-    const prompt = `Analyze the following English text and identify approximately ${count} words this specific user would find challenging.
+    const prompt = `Analyze the following English text and identify ALL words this specific user would find challenging based on their vocabulary profile.
 The user has PhD-level expertise in biology and master's-level expertise in physics, so do NOT suggest technical jargon from those fields (e.g. biological terms, physics terminology).${profileLine}${excludeLine}
 For each word, provide its short Korean meaning (1-3 words).
 Return ONLY a JSON object where the key is the English word (lowercase) and the value is the Korean meaning.

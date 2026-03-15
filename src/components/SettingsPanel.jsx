@@ -12,7 +12,6 @@ export default function SettingsPanel({ isOpen, onClose }) {
   const fontSize = useSettingsStore(s => s.fontSize)
   const lineHeight = useSettingsStore(s => s.lineHeight)
   const apiKey = useSettingsStore(s => s.apiKey)
-  const hintWordCount = useSettingsStore(s => s.hintWordCount)
   const updateSetting = useSettingsStore(s => s.updateSetting)
 
   const [showApiKey, setShowApiKey] = useState(false)
@@ -123,23 +122,6 @@ export default function SettingsPanel({ isOpen, onClose }) {
             step={0.1}
             value={lineHeight}
             onChange={e => updateSetting('lineHeight', Number(e.target.value))}
-            style={styles.slider}
-          />
-        </div>
-
-        {/* Hints Per Book */}
-        <div style={styles.section}>
-          <div style={styles.sliderHeader}>
-            <label style={styles.label}>Hints Per Book</label>
-            <span style={styles.sliderValue}>{hintWordCount}</span>
-          </div>
-          <input
-            type="range"
-            min={5}
-            max={60}
-            step={5}
-            value={hintWordCount}
-            onChange={e => updateSetting('hintWordCount', Number(e.target.value))}
             style={styles.slider}
           />
         </div>
