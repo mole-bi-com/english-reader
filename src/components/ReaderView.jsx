@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { useReadingStore } from '../stores/reading-store'
+import { useReadingStore, trackTokenUsage } from '../stores/reading-store'
 import { useSettingsStore } from '../stores/settings-store'
 import { useVocabStore } from '../stores/vocab-store'
 import { useStatsStore } from '../stores/stats-store'
@@ -329,10 +329,13 @@ export default function ReaderView() {
                   body: JSON.stringify({ text: currentBook.text }),
                 })
                 const data = await res.json()
-                if (Array.isArray(data)) {
-                  setQuizQuestions(data)
+                if (data.questions && Array.isArray(data.questions)) {
+                  setQuizQuestions(data.questions)
+                  if (data.usage) trackTokenUsage(data.usage)
+                } else if (data.error) {
+                  setQuizQuestions([{ question: data.error, answer: '' }])
                 } else {
-                  setQuizQuestions([{ question: data.error || 'Failed to generate questions.', answer: '' }])
+                  setQuizQuestions([{ question: 'Failed to generate questions.', answer: '' }])
                 }
               } catch (err) {
                 setQuizQuestions([{ question: 'Error: ' + err.message, answer: '' }])

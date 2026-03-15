@@ -1,4 +1,4 @@
-import { useReadingStore } from '../stores/reading-store'
+import { useReadingStore, getTokenUsage } from '../stores/reading-store'
 import { useSettingsStore } from '../stores/settings-store'
 import { useStatsStore } from '../stores/stats-store'
 import { useVocabStore } from '../stores/vocab-store'
@@ -301,6 +301,24 @@ const styles = {
     color: 'var(--text-secondary, #a89880)',
     letterSpacing: '0.05em',
     textTransform: 'uppercase',
+  },
+  apiUsageRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '6px 0',
+    borderBottom: '1px solid var(--border, #eee5d5)',
+  },
+  apiUsageLabel: {
+    fontSize: 13,
+    fontFamily: 'Georgia, serif',
+    color: 'var(--text-secondary, #8b7b6b)',
+  },
+  apiUsageValue: {
+    fontSize: 13,
+    fontFamily: 'Georgia, serif',
+    color: 'var(--text, #3d3229)',
+    fontWeight: 400,
   },
   vocabRecent: {
     fontSize: 13,
@@ -765,6 +783,32 @@ export default function HomeView() {
           </section>
         </>
       )}
+
+      {(() => {
+        const usage = getTokenUsage()
+        if (usage.calls === 0) return null
+        const cost = (usage.input * 0.15 + usage.output * 0.60) / 1_000_000
+        return (
+          <>
+            <hr style={styles.divider} />
+            <section style={styles.section}>
+              <h2 style={styles.sectionTitle}>API Usage</h2>
+              <div style={styles.apiUsageRow}>
+                <span style={styles.apiUsageLabel}>Gemini calls</span>
+                <span style={styles.apiUsageValue}>{usage.calls}</span>
+              </div>
+              <div style={styles.apiUsageRow}>
+                <span style={styles.apiUsageLabel}>Tokens (in / out)</span>
+                <span style={styles.apiUsageValue}>{usage.input.toLocaleString()} / {usage.output.toLocaleString()}</span>
+              </div>
+              <div style={styles.apiUsageRow}>
+                <span style={styles.apiUsageLabel}>Estimated cost</span>
+                <span style={{ ...styles.apiUsageValue, color: 'var(--accent, #8b6914)' }}>${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(2)}</span>
+              </div>
+            </section>
+          </>
+        )
+      })()}
 
       {books.length === 0 && vocab.length === 0 && (
         <>

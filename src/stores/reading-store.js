@@ -4,6 +4,25 @@ import { useSettingsStore } from './settings-store'
 import { useKnownWordsStore } from './known-words-store'
 import { useVocabStore } from './vocab-store'
 
+// Track Gemini API token usage in localStorage
+export function trackTokenUsage(usage) {
+  try {
+    const stored = JSON.parse(localStorage.getItem('tokenUsage') || '{"input":0,"output":0,"calls":0}')
+    stored.input += usage.input || 0
+    stored.output += usage.output || 0
+    stored.calls += 1
+    localStorage.setItem('tokenUsage', JSON.stringify(stored))
+  } catch { /* ignore */ }
+}
+
+export function getTokenUsage() {
+  try {
+    return JSON.parse(localStorage.getItem('tokenUsage') || '{"input":0,"output":0,"calls":0}')
+  } catch {
+    return { input: 0, output: 0, calls: 0 }
+  }
+}
+
 export const useReadingStore = create((set, get) => ({
   books: [],
   currentBook: null,
@@ -136,12 +155,13 @@ export const useReadingStore = create((set, get) => ({
         throw new Error('API unavailable')
       }
 
-      const hints = await res.json()
-      if (hints && !hints.error) {
-        _applyHints(title, hints)
+      const data = await res.json()
+      if (data && data.hints && !data.error) {
+        _applyHints(title, data.hints)
+        if (data.usage) trackTokenUsage(data.usage)
         return
       }
-      throw new Error(hints.error ?? 'Invalid response')
+      throw new Error(data.error ?? 'Invalid response')
     } catch {
       // Fallback: call Gemini directly from client
       if (!apiKey) {

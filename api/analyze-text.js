@@ -51,6 +51,7 @@ ${text.substring(0, 5000)}`
     let jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
     jsonText = jsonText.replace(/```json|```/g, '').trim()
     const hints = JSON.parse(jsonText)
+    const usage = data.usageMetadata || {}
 
     // Save to DB if available
     if (bookTitle && process.env.DATABASE_URL) {
@@ -63,7 +64,7 @@ ${text.substring(0, 5000)}`
       }
     }
 
-    return res.status(200).json(hints)
+    return res.status(200).json({ hints, usage: { input: usage.promptTokenCount || 0, output: usage.candidatesTokenCount || 0 } })
   } catch (error) {
     console.error('AI Analysis Error:', error)
     return res.status(500).json({ error: error.message })

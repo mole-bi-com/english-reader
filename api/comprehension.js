@@ -48,8 +48,9 @@ ${excerpt}`
     let jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
     jsonText = jsonText.replace(/```json|```/g, '').trim()
     const questions = JSON.parse(jsonText)
+    const usage = data.usageMetadata || {}
 
-    return res.status(200).json(questions)
+    return res.status(200).json({ questions, usage: { input: usage.promptTokenCount || 0, output: usage.candidatesTokenCount || 0 } })
   } catch (error) {
     console.error('Comprehension API Error:', error)
     return res.status(500).json({ error: error.message })
