@@ -25,10 +25,10 @@ export default async function handler(req, res) {
 
     const prompt = `Read the following English text and generate exactly 2 inferential comprehension questions that require the reader to think beyond the literal text (drawing conclusions, making inferences, understanding themes or motivations).
 
-For each question, provide a model answer.
+For each question, provide both an English version and a Korean translation, and a model answer in both languages.
 
 Return ONLY a JSON array in this exact format:
-[{"question": "...", "answer": "..."}, {"question": "...", "answer": "..."}]
+[{"question": "English question", "question_ko": "한국어 질문", "answer": "English answer", "answer_ko": "한국어 답변"}, ...]
 
 Text:
 ${excerpt}`

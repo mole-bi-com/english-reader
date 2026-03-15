@@ -548,6 +548,7 @@ export default function ReaderView() {
                 {quizQuestions.map((q, idx) => (
                   <div key={idx} style={styles.quizItem}>
                     <p style={styles.quizQuestion}>{idx + 1}. {q.question}</p>
+                    {q.question_ko && <p style={styles.quizQuestionKo}>{q.question_ko}</p>}
                     {!revealedAnswers.has(idx) ? (
                       <button
                         onClick={() => setRevealedAnswers(prev => new Set([...prev, idx]))}
@@ -556,7 +557,10 @@ export default function ReaderView() {
                         Reveal Answer
                       </button>
                     ) : (
-                      <p style={styles.quizAnswer}>{q.answer}</p>
+                      <>
+                        <p style={styles.quizAnswer}>{q.answer}</p>
+                        {q.answer_ko && <p style={styles.quizAnswerKo}>{q.answer_ko}</p>}
+                      </>
                     )}
                   </div>
                 ))}
@@ -866,6 +870,14 @@ const styles = {
     marginBottom: 12,
     marginTop: 0,
   },
+  quizQuestionKo: {
+    fontSize: 14,
+    color: '#8b7b6b',
+    fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+    lineHeight: 1.7,
+    marginBottom: 12,
+    marginTop: -8,
+  },
   quizAnswer: {
     fontSize: 14,
     color: '#5a4a3a',
@@ -878,6 +890,15 @@ const styles = {
     background: 'rgba(139, 105, 20, 0.07)',
     borderRadius: 6,
     borderLeft: '3px solid #b58d2a',
+  },
+  quizAnswerKo: {
+    fontSize: 13,
+    color: '#8b7b6b',
+    fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+    lineHeight: 1.7,
+    marginTop: 6,
+    marginBottom: 0,
+    paddingLeft: 17,
   },
   revealBtn: {
     padding: '7px 16px',
