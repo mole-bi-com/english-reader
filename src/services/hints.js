@@ -2,10 +2,10 @@
 // Used when /api/analyze-text is unavailable (local/Electron env)
 export async function generateHintsWithGemini(text, apiKey, knownWords = [], hardWords = []) {
   const excludeLine = knownWords.length > 0
-    ? `\nDo NOT include these words the user already knows: ${knownWords.slice(0, 150).join(', ')}.`
+    ? `\nDo NOT include these words the user already knows: ${knownWords.slice(0, 300).join(', ')}.`
     : ''
   const profileLine = hardWords.length > 0
-    ? `\nThe user has previously looked up these words (they found them difficult): ${hardWords.slice(0, 50).join(', ')}. Use this vocabulary profile to calibrate which words to include — select words at a similar or slightly easier difficulty level.`
+    ? `\nThe user's vocabulary profile (words they have looked up, starred = high priority, format: word (pos): definition):\n${hardWords.slice(0, 150).join('\n')}\nUse this profile to precisely calibrate difficulty — hint words should be at a similar level to these.`
     : ''
 
   const prompt = `Analyze the following English text and identify ALL words this specific user would find challenging based on their vocabulary profile.

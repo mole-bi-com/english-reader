@@ -3,10 +3,10 @@ export default async function handler(req, res) {
 
   const { text, bookTitle, knownWords = [], hardWords = [] } = req.body
   const excludeLine = Array.isArray(knownWords) && knownWords.length > 0
-    ? `\nDo NOT include these words the user already knows: ${knownWords.slice(0, 150).join(', ')}.`
+    ? `\nDo NOT include these words the user already knows: ${knownWords.slice(0, 300).join(', ')}.`
     : ''
   const profileLine = Array.isArray(hardWords) && hardWords.length > 0
-    ? `\nThe user has previously looked up these words (they found them difficult): ${hardWords.slice(0, 50).join(', ')}. Use this vocabulary profile to calibrate which words to include — select words at a similar or slightly easier difficulty level.`
+    ? `\nThe user's vocabulary profile (words they have looked up, starred = high priority, format: word (pos): definition):\n${hardWords.slice(0, 150).join('\n')}\nUse this profile to precisely calibrate difficulty — hint words should be at a similar level to these.`
     : ''
 
   try {

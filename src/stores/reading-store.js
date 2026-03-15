@@ -55,7 +55,28 @@ export const useReadingStore = create((set, get) => ({
 
     const { apiKey } = useSettingsStore.getState()
     const knownWords = useKnownWordsStore.getState().getKnownList()
-    const hardWords = useVocabStore.getState().vocab.slice(0, 100).map(v => v.word)
+
+    // Starred words first, then rest — deduplicate by word
+    const vocabItems = useVocabStore.getState().vocab
+    const seenWords = new Set()
+    const hardWords = [
+      ...vocabItems.filter(v => v.is_starred),
+      ...vocabItems.filter(v => !v.is_starred),
+    ]
+      .filter(v => {
+        const key = v.word.toLowerCase()
+        if (seenWords.has(key)) return false
+        seenWords.add(key)
+        return true
+      })
+      .slice(0, 150)
+      .map(v => {
+        let entry = v.word
+        if (v.pos) entry += ` (${v.pos})`
+        if (v.en_definition) entry += `: ${v.en_definition}`
+        else if (v.ko) entry += `: ${v.ko}`
+        return entry
+      })
 
     _setHintStatus(title, 'loading')
 

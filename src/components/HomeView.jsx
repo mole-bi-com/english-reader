@@ -260,6 +260,54 @@ const styles = {
     borderRadius: 4,
     transition: 'width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)',
   },
+  vocabStats: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 24,
+    padding: '16px 20px',
+    background: 'var(--card-bg, #faf6ee)',
+    border: '1px solid var(--border, #e8dfc9)',
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  vocabStatItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 2,
+  },
+  vocabStatNumber: {
+    fontSize: 24,
+    fontFamily: 'Georgia, serif',
+    color: 'var(--accent, #8b6914)',
+    fontWeight: 400,
+    lineHeight: 1,
+  },
+  vocabStatLabel: {
+    fontSize: 12,
+    fontFamily: 'Georgia, serif',
+    color: 'var(--text-secondary, #a89880)',
+    letterSpacing: '0.05em',
+    textTransform: 'uppercase',
+  },
+  vocabStatDivider: {
+    width: 1,
+    height: 32,
+    background: 'var(--border, #e8dfc9)',
+  },
+  vocabRecent: {
+    fontSize: 13,
+    fontFamily: 'Georgia, serif',
+    color: 'var(--text-secondary, #a89880)',
+    fontStyle: 'italic',
+    paddingLeft: 4,
+  },
+  vocabRecentLabel: {
+    fontStyle: 'normal',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    fontSize: 11,
+  },
 }
 
 export default function HomeView() {
@@ -451,7 +499,33 @@ export default function HomeView() {
         </>
       )}
 
-      {books.length === 0 && (
+      {vocab.length > 0 && (
+        <>
+          <hr style={styles.divider} />
+          <section style={styles.section}>
+            <h2 style={styles.sectionTitle}>Vocabulary Profile</h2>
+            <div style={styles.vocabStats}>
+              <div style={styles.vocabStatItem}>
+                <span style={styles.vocabStatNumber}>{[...new Set(vocab.map(v => v.word.toLowerCase()))].length}</span>
+                <span style={styles.vocabStatLabel}>words saved</span>
+              </div>
+              <div style={styles.vocabStatDivider} />
+              <div style={styles.vocabStatItem}>
+                <span style={styles.vocabStatNumber}>{vocab.filter(v => v.is_starred).length}</span>
+                <span style={styles.vocabStatLabel}>starred</span>
+              </div>
+            </div>
+            {vocab.length > 0 && (
+              <div style={styles.vocabRecent}>
+                <span style={styles.vocabRecentLabel}>Recent · </span>
+                {[...new Set(vocab.map(v => v.word.toLowerCase()))].slice(0, 7).join(' · ')}
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
+      {books.length === 0 && vocab.length === 0 && (
         <>
           <hr style={styles.divider} />
           <p style={styles.emptyState}>
