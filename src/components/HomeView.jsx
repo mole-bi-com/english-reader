@@ -290,11 +290,6 @@ const styles = {
     letterSpacing: '0.05em',
     textTransform: 'uppercase',
   },
-  vocabStatDivider: {
-    width: 1,
-    height: 32,
-    background: 'var(--border, #e8dfc9)',
-  },
   vocabRecent: {
     fontSize: 13,
     fontFamily: 'Georgia, serif',
@@ -508,11 +503,6 @@ export default function HomeView() {
               <div style={styles.vocabStatItem}>
                 <span style={styles.vocabStatNumber}>{[...new Set(vocab.map(v => v.word.toLowerCase()))].length}</span>
                 <span style={styles.vocabStatLabel}>words saved</span>
-              </div>
-              <div style={styles.vocabStatDivider} />
-              <div style={styles.vocabStatItem}>
-                <span style={styles.vocabStatNumber}>{vocab.filter(v => v.is_starred).length}</span>
-                <span style={styles.vocabStatLabel}>starred</span>
               </div>
             </div>
             {vocab.length > 0 && (

@@ -56,13 +56,10 @@ export const useReadingStore = create((set, get) => ({
     const { apiKey } = useSettingsStore.getState()
     const knownWords = useKnownWordsStore.getState().getKnownList()
 
-    // Starred words first, then rest — deduplicate by word
+    // Deduplicate by word (most recent first, as vocab is stored newest-first)
     const vocabItems = useVocabStore.getState().vocab
     const seenWords = new Set()
-    const hardWords = [
-      ...vocabItems.filter(v => v.is_starred),
-      ...vocabItems.filter(v => !v.is_starred),
-    ]
+    const hardWords = vocabItems
       .filter(v => {
         const key = v.word.toLowerCase()
         if (seenWords.has(key)) return false
